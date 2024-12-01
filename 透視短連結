@@ -1,1 +1,1 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Nash29197/Nash-Hub/refs/heads/main/%E9%80%8F%E8%A6%96%E4%BB%A5%E5%8A%A0%E5%AF%86"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Nash29197/Nash-Hub/refs/heads/main/ESP"))()
