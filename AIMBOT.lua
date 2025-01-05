@@ -51,13 +51,6 @@ local function aimAtTarget(target)
     end
 end
 
--- 按下 P 啟用/停用瞄準輔助
-UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.P then
-        AimAssistEnabled = not AimAssistEnabled
-    end
-end)
-
 -- 持續執行瞄準輔助
 RunService.RenderStepped:Connect(function()
     if AimAssistEnabled then
