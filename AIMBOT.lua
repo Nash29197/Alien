@@ -1,5 +1,3 @@
--- LocalScript (放在 StarterPlayer > StarterPlayerScripts)
-
 -- 服務
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -8,7 +6,7 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
 -- 配置
-local AimAssistEnabled = false -- 是否啟用瞄準輔助
+local AimAssistEnabled = true -- 是否啟用瞄準輔助
 local AimSensitivity = 0.0 -- 瞄準靈敏度 (值越小越快)
 
 -- 獲取最近的玩家
