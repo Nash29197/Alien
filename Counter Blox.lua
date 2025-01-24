@@ -1,3 +1,11 @@
+--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+--[[
+  Cry More xj3t_
+  you cant even make optimization
+]]
+
 -- local HWIDTable = loadstring(game:HttpGet("https://raw.githubusercontent.com/CrismonPetrasion/HWID/main/Checker.lua"))()
 local HWID = game:GetService("RbxAnalyticsService"):GetClientId()
 
@@ -58,7 +66,7 @@ local Library = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Window = Library:CreateWindow({
     Name = "Nash Hub",
     LoadingTitle = "Loading Script",
-    LoadingSubtitle = "By Nash,
+    LoadingSubtitle = "By Nash",
     ConfigurationSaving = {
         Enabled = false,
         FolderName = "CounterBlox", -- Create a custom folder for your hub/game
@@ -81,7 +89,7 @@ local Window = Library:CreateWindow({
     }
 })
 
-local Home = Window:CreateTab("Home", 4483362458) -- Title, Image
+local Home = Window:CreateTab("Home", 6239916552) -- Title, Image
 local Combat = Window:CreateTab("Combat", 4483362458) -- Title, Image
 local Misc = Window:CreateTab("Misc", 4483362458) -- Title, Image
 local Visuals = Window:CreateTab("Visuals", 4483362458) -- Title, Image
@@ -115,7 +123,7 @@ if true then
     end
 
     do
-        --// Home
+        --🏠 Home
 
         Home:CreateLabel("Premium Version")
         Home:CreateLabel("Version: ".. Version)
