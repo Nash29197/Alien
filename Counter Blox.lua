@@ -1,99 +1,115 @@
 --[[
-	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+    WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
 ]]
---[[
-  Cry More xj3t_
-  you cant even make optimization
+--[[ 
+    警告：注意！此腳本尚未經 ScriptBlox 驗證，使用時請自行承擔風險！
+]]
+--[[ 
+    作者: Nash
+    備註: 你甚至無法進行優化（作者的評論，可能表達對某些問題的不滿）。
 ]]
 
--- local HWIDTable = loadstring(game:HttpGet("https://raw.githubusercontent.com/CrismonPetrasion/HWID/main/Checker.lua"))()
+-- 獲取當前用戶的 HWID（硬體 ID）或唯一識別 ID
+-- 注意：這裡獲取的是用戶的 RbxAnalyticsService 提供的 ClientId（即玩家的唯一識別 ID）
 local HWID = game:GetService("RbxAnalyticsService"):GetClientId()
 
---// Services
+--// 服務（Services）
 
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
-local Lighting = game:GetService("Lighting")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")  -- 取得運行服務
+local UserInputService = game:GetService("UserInputService")  -- 取得用戶輸入服務
+local Players = game:GetService("Players")  -- 取得玩家服務
+local Lighting = game:GetService("Lighting")  -- 取得光照服務
+local ReplicatedStorage = game:GetService("ReplicatedStorage")  -- 取得複製儲存服務
 
 --// Variables
 
-local Camera = workspace.CurrentCamera
-local Weapons = ReplicatedStorage.Weapons
-local Debris = workspace.Debris
-local RayIgnore = workspace.Ray_Ignore
-local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera  -- 當前相機
+local Weapons = ReplicatedStorage.Weapons  -- 儲存武器的路徑
+local Debris = workspace.Debris  -- 遊戲中的垃圾（例如物品刪除）
+local RayIgnore = workspace.Ray_Ignore  -- 用來忽略射線檢測的物體
+local LocalPlayer = Players.LocalPlayer  -- 當前玩家
 
-local CurrentCamera = Camera
-local WorldToViewportPoint = CurrentCamera.WorldToViewportPoint
+local CurrentCamera = Camera  -- 簡化使用相機
+local WorldToViewportPoint = CurrentCamera.WorldToViewportPoint  -- 轉換世界座標為螢幕座標
 
 --// Aimbot Settings
-
-local FOVring = Drawing.new("Circle")
-FOVring.Visible = false
-FOVring.Thickness = 1.5
-FOVring.Radius = 150
-FOVring.Transparency = 1
-FOVring.Color = Color3.fromRGB(200, 200, 200)
+local FOVring = Drawing.new("Circle")  -- 創建圓形（FOV）
+FOVring.Visible = false  -- 初始隱藏
+FOVring.Thickness = 1.5  -- 圓形邊框厚度
+FOVring.Radius = 150  -- 圓形半徑
+FOVring.Transparency = 1  -- 透明度
+FOVring.Color = Color3.fromRGB(200, 200, 200)  -- 顏色
 
 local AimSettings = {
-    Enabled = false,
-    TeamCheck = false,
-    Smoothing = 1,
-    EnableFOV = false
+    Enabled = false,  -- 是否啟用瞄準機器人
+    TeamCheck = false,  -- 是否檢查目標是否為同隊
+    Smoothing = 1,  -- 瞄準過程的平滑度
+    EnableFOV = false  -- 是否顯示瞄準範圍
 }
 
+--// ESP Settings
 local ESPSettings = {
-    Enabled = false,
-    UseTeamColor = false,
-    ChamsColor = Color3.fromRGB(200,200,200)
+    Enabled = false,  -- 是否啟用 ESP
+    UseTeamColor = false,  -- 是否使用隊伍顏色
+    ChamsColor = Color3.fromRGB(200, 200, 200)  -- ESP 顏色設置
 }
 
+--// Sound Settings
 local Sounds = {
-    KillSoundEnabled = false,
-    HitSoundEnabled = false,
-    KillSound = nil,
-    HitSound = nil,
+    KillSoundEnabled = false,  -- 是否啟用擊殺音效
+    HitSoundEnabled = false,  -- 是否啟用擊中音效
+    KillSound = nil,  -- 設置擊殺音效文件
+    HitSound = nil,  -- 設置擊中音效文件
 }
 
---// Library
+--// 載入外部庫
+local success, Library = pcall(function()
+    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()  -- 從 URL 載入外部庫
+end)
 
-local Library = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+if not success then
+    warn("Failed to load Library: " .. tostring(Library))  -- 輸出錯誤原因
+end
 
---// Window
+--// Window 設置
 
 local Window = Library:CreateWindow({
-    Name = "Nash Hub",
-    LoadingTitle = "Loading Script",
-    LoadingSubtitle = "By Nash",
-    ConfigurationSaving = {
-        Enabled = false,
-        FolderName = "CounterBlox", -- Create a custom folder for your hub/game
-        FileName = "FizzCounterBlox"
+    Name = "👑Nash Hub👑",  -- 窗口名稱
+    LoadingTitle = "👑Nash Hub👑 Loading",  -- 加載時標題
+    LoadingSubtitle = "👑By Nash👑",  -- 加載時副標題
+    ConfigurationSaving = {  -- 配置保存設置
+        Enabled = true,  -- 啟用配置保存
+        FolderName = "NashHub",  -- 保存資料夾名稱
+        FileName = "NashHubConfig"  -- 配置文件名稱
     },
-    Discord = {
-        Enabled = false,
-        Invite = "noinvitelink", -- The Discord invite code, do not include discord.gg/. E.g. discord.gg/ABCD would be ABCD
-        RememberJoins = true -- Set this to false to make them join the discord every time they load it up
+    Discord = {  -- Discord 設置
+        Enabled = false,  -- 是否啟用 Discord 連結
+        Invite = "",  -- Discord 邀請碼，若不啟用則為空
+        RememberJoins = true,  -- 是否記住玩家加入的 Discord 頻道
     },
-    KeySystem = false, -- Set this to true to use our key system
-    KeySettings = {
-        Title = "Key System",
-        Subtitle = "Discord System",
-        Note = "discord.gg/vZQTkyCXD8",
-        FileName = "Key", -- It is recommended to use something unique as other scripts using Rayfield may overwrite your key file
-        SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
-        GrabKeyFromSite = false, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
-        Key = {"GalaxyHubIsBestSkiddersEver"} -- List of keys that will be accepted by the system, can be RAW file links (pastebin, github etc) or simple strings ("hello","key22")
-    }
 })
 
-local Home = Window:CreateTab("Home", 6239916552) -- Title, Image
-local Combat = Window:CreateTab("Combat", 4483362458) -- Title, Image
-local Misc = Window:CreateTab("Misc", 4483362458) -- Title, Image
-local Visuals = Window:CreateTab("Visuals", 4483362458) -- Title, Image
-local World = Window:CreateTab("World", 4483362458) -- Title, Image
+--// Drawing API 檢查
+if not pcall(function() Drawing.new("Circle") end) then
+    warn("Drawing API is not available in this environment.")  -- 如果 Drawing API 不可用，輸出錯誤訊息
+end
+
+   KeySystem = false,  -- 設置為 true 以啟用我們的密鑰系統
+KeySettings = {
+    Title = "Key System",  -- 密鑰系統的標題
+    Subtitle = "Discord System",  -- 密鑰系統的副標題（這裡標註為 Discord 系統）
+    Note = "discord.gg/vZQTkyCXD8",  -- 提供 Discord 連結作為附註，告訴用戶更多信息
+    FileName = "Key",  -- 密鑰文件名稱（建議使用獨特的名稱，因為其他腳本使用 Rayfield 可能會覆蓋這個密鑰文件）
+    SaveKey = true,  -- 設置為 true 時，將保存用戶的密鑰；但如果更改密鑰，用戶將無法繼續使用腳本
+    GrabKeyFromSite = false,  -- 如果設置為 true，則可以設置下面的 Key 來從網站獲取密鑰（例如 Pastebin 或 GitHub）
+    Key = {"GalaxyHubIsBestSkiddersEver"}  -- 允許的密鑰列表，可以是 RAW 文件鏈接（如 Pastebin、GitHub 等）或簡單的字符串（例如 "hello" 或 "key22"）
+}
+
+local Home = Window:CreateTab("🏠 Home", 0) -- Title, Image
+local Combat = Window:CreateTab("🔫 Combat", 0) -- Title, Image
+local Misc = Window:CreateTab("🧰 Misc", 0) -- Title, Image
+local Visuals = Window:CreateTab("👁️ Visuals", 0) -- Title, Image
+local World = Window:CreateTab("🌍 World", 0) -- Title, Image
 
 --// Version
 
