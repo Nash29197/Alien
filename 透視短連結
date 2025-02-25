@@ -1,1 +1,0 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Nash29197/Nash-Hub/refs/heads/main/ESP"))()
