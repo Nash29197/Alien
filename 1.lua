@@ -17,7 +17,7 @@ local function Notify(title, text, duration)
     end)
 end
 
--- 🎯 所有目標物件與稀有度分類
+-- 🎯 目標清單
 local Targets = {
     ["Noobini Pizzanini"] = {enabled = true, quality = "Common"},
     ["Lirilí Larilá"] = {enabled = true, quality = "Common"},
@@ -97,6 +97,7 @@ local function FoundTarget()
     return #foundList > 0, foundList
 end
 
+-- ✅ 隨機跳服（只選少於 8 人）
 local function GetNextServer()
     local url = string.format("https://games.roblox.com/v1/games/%d/servers/Public?limit=100&sortOrder=Asc", PlaceId)
     local success, result = pcall(function()
@@ -104,27 +105,30 @@ local function GetNextServer()
     end)
 
     if success and result and result.data then
+        local candidates = {}
         for _, server in ipairs(result.data) do
-            if server.playing <= 1 and not visited[server.id] and server.id ~= game.JobId then
-                visited[server.id] = true
-                return server.id
+            if server.playing < 8 and not visited[server.id] and server.id ~= game.JobId then
+                table.insert(candidates, server.id)
             end
+        end
+        if #candidates > 0 then
+            local randomIndex = math.random(1, #candidates)
+            local serverId = candidates[randomIndex]
+            visited[serverId] = true
+            return serverId
         end
     end
     return nil
 end
 
--- ESP 區域 --
-
+-- ✅ ESP 區塊
 local highlightColor = Color3.fromRGB(255, 0, 0)
-
 local qualityColors = {
     ["Common"] = Color3.fromRGB(255, 255, 255),
     ["Rare"] = Color3.fromRGB(30, 144, 255),
     ["Epic"] = Color3.fromRGB(148, 0, 211),
     ["Legendary"] = Color3.fromRGB(255, 215, 0),
     ["Mythic"] = Color3.fromRGB(255, 0, 0),
-    ["Brainrot God"] = nil, -- 特殊漸層可自行擴充
     ["Secret"] = Color3.fromRGB(0, 0, 0),
 }
 
@@ -142,7 +146,6 @@ end
 
 local function createNameTag(part, name, quality)
     if part:FindFirstChild("ESP_NameTag") then return end
-
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "ESP_NameTag"
     billboard.Size = UDim2.new(0, 100, 0, 20)
@@ -180,32 +183,26 @@ end
 
 local function addESP(obj)
     if not obj:IsA("Model") then return end
-
     local targetData = Targets[obj.Name]
     if not targetData or not targetData.enabled or not RarityFilter[targetData.quality] then return end
-
     addHighlightToAllParts(obj, highlightColor)
-
     local adorneePart = getHighestPart(obj)
     if adorneePart then
         createNameTag(adorneePart, obj.Name, targetData.quality)
     end
 end
 
--- 現有物件立即標記
+-- 掃描現有
 for _, obj in ipairs(workspace:GetDescendants()) do
     addESP(obj)
 end
+-- 新增自動 ESP
+workspace.DescendantAdded:Connect(addESP)
 
--- 新增物件自動標記
-workspace.DescendantAdded:Connect(function(obj)
-    addESP(obj)
-end)
-
--- 完整跳服函數，保持不變
+-- ✅ 跳服主程式
 local function StartHopping()
     while true do
-        task.wait(0.25)
+        task.wait(0.2)
         local found, foundList = FoundTarget()
 
         if found then
@@ -225,8 +222,13 @@ local function StartHopping()
         local nextServer = GetNextServer()
         if nextServer then
             Notify("跳轉伺服器", "伺服器 ID：" .. nextServer, 3)
-            TeleportService:TeleportToPlaceInstance(PlaceId, nextServer, LocalPlayer)
-            task.wait(3)
+            local success, err = pcall(function()
+                TeleportService:TeleportToPlaceInstance(PlaceId, nextServer, LocalPlayer)
+            end)
+            if not success and string.find(err, "772") then
+                warn("❌ 傳送失敗（772），已忽略")
+            end
+            task.wait(2)
         end
     end
 end
