@@ -124,7 +124,7 @@ local qualityColors = {
     ["Epic"] = Color3.fromRGB(148, 0, 211),
     ["Legendary"] = Color3.fromRGB(255, 215, 0),
     ["Mythic"] = Color3.fromRGB(255, 0, 0),
-    ["Brainrot God"] = nil, -- 特殊漸層可自行擴充
+    ["Brainrot God"] = Color3.new(0.2, 1, 0.2), -- 綠色調示範
     ["Secret"] = Color3.fromRGB(0, 0, 0),
 }
 
@@ -202,10 +202,10 @@ workspace.DescendantAdded:Connect(function(obj)
     addESP(obj)
 end)
 
--- 完整跳服函數，保持不變
 local function StartHopping()
     while true do
-        task.wait(0.25)
+        task.wait(0.1) -- 加快檢查速度
+
         local found, foundList = FoundTarget()
 
         if found then
@@ -226,7 +226,7 @@ local function StartHopping()
         if nextServer then
             Notify("跳轉伺服器", "伺服器 ID：" .. nextServer, 3)
             TeleportService:TeleportToPlaceInstance(PlaceId, nextServer, LocalPlayer)
-            task.wait(3)
+            task.wait(0.5) -- 縮短跳服等待時間
         end
     end
 end
