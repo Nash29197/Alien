@@ -17,7 +17,6 @@ local function Notify(title, text, duration)
     end)
 end
 
--- 🎯 所有目標物件與稀有度分類
 local Targets = {
     ["Noobini Pizzanini"] = {enabled = true, quality = "Common"},
     ["Lirilí Larilá"] = {enabled = true, quality = "Common"},
@@ -105,7 +104,7 @@ local function GetNextServer()
 
     if success and result and result.data then
         for _, server in ipairs(result.data) do
-            if server.playing <= 1 and not visited[server.id] and server.id ~= game.JobId then
+            if server.playing < 8 and not visited[server.id] and server.id ~= game.JobId then
                 visited[server.id] = true
                 return server.id
             end
@@ -124,7 +123,7 @@ local qualityColors = {
     ["Epic"] = Color3.fromRGB(148, 0, 211),
     ["Legendary"] = Color3.fromRGB(255, 215, 0),
     ["Mythic"] = Color3.fromRGB(255, 0, 0),
-    ["Brainrot God"] = Color3.new(0.2, 1, 0.2), -- 綠色調示範
+    ["Brainrot God"] = Color3.fromRGB(255, 69, 0),
     ["Secret"] = Color3.fromRGB(0, 0, 0),
 }
 
@@ -204,8 +203,7 @@ end)
 
 local function StartHopping()
     while true do
-        task.wait(0.1) -- 加快檢查速度
-
+        task.wait(0.25)
         local found, foundList = FoundTarget()
 
         if found then
@@ -226,9 +224,4 @@ local function StartHopping()
         if nextServer then
             Notify("跳轉伺服器", "伺服器 ID：" .. nextServer, 3)
             TeleportService:TeleportToPlaceInstance(PlaceId, nextServer, LocalPlayer)
-            task.wait(0.5) -- 縮短跳服等待時間
-        end
-    end
-end
-
-StartHopping()
+            task.wait(0.2)  -- 這裡改成 0.2 秒
