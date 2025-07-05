@@ -228,7 +228,7 @@ local function StartHopping()
             if not success and string.find(err, "772") then
                 warn("❌ 傳送失敗（772），已忽略")
             end
-            task.wait(2)
+            task.wait(3)
         end
     end
 end
