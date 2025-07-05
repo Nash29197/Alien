@@ -234,7 +234,7 @@ local function StartHopping()
             TeleportService:TeleportToPlaceInstance(PlaceId, nextServer, LocalPlayer)
             task.wait(2)
         else
-            task.wait(1) -- 若無伺服器可跳，短暫等待再試
+            task.wait(3) -- 若無伺服器可跳，短暫等待再試
         end
     end
 end
