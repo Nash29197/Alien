@@ -104,23 +104,17 @@ local function GetNextServer()
     end)
 
     if success and result and result.data then
-        local candidates = {}
         for _, server in ipairs(result.data) do
-            if server.playing < 8 and not visited[server.id] and server.id ~= game.JobId then
-                table.insert(candidates, server.id)
+            if server.playing <= 1 and not visited[server.id] and server.id ~= game.JobId then
+                visited[server.id] = true
+                return server.id
             end
-        end
-        if #candidates > 0 then
-            local randomIndex = math.random(1, #candidates)
-            local chosenServer = candidates[randomIndex]
-            visited[chosenServer] = true
-            return chosenServer
         end
     end
     return nil
 end
 
--- ESP 相關
+-- ESP 區域 --
 
 local highlightColor = Color3.fromRGB(255, 0, 0)
 
@@ -130,7 +124,7 @@ local qualityColors = {
     ["Epic"] = Color3.fromRGB(148, 0, 211),
     ["Legendary"] = Color3.fromRGB(255, 215, 0),
     ["Mythic"] = Color3.fromRGB(255, 0, 0),
-    ["Brainrot God"] = Color3.fromRGB(255, 69, 0), -- 你可自訂色彩
+    ["Brainrot God"] = nil, -- 特殊漸層可自行擴充
     ["Secret"] = Color3.fromRGB(0, 0, 0),
 }
 
@@ -198,20 +192,20 @@ local function addESP(obj)
     end
 end
 
--- 標記現有物件
+-- 現有物件立即標記
 for _, obj in ipairs(workspace:GetDescendants()) do
     addESP(obj)
 end
 
--- 監聽新增物件，自動標記
+-- 新增物件自動標記
 workspace.DescendantAdded:Connect(function(obj)
     addESP(obj)
 end)
 
--- 完整跳服函數，保持不變但使用隨機跳服
+-- 完整跳服函數，保持不變
 local function StartHopping()
     while true do
-        task.wait(0.2)
+        task.wait(0.25)
         local found, foundList = FoundTarget()
 
         if found then
@@ -232,9 +226,7 @@ local function StartHopping()
         if nextServer then
             Notify("跳轉伺服器", "伺服器 ID：" .. nextServer, 3)
             TeleportService:TeleportToPlaceInstance(PlaceId, nextServer, LocalPlayer)
-            task.wait(2)
-        else
-            task.wait(3) -- 若無伺服器可跳，短暫等待再試
+            task.wait(3)
         end
     end
 end
