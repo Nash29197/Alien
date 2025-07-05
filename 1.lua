@@ -17,6 +17,7 @@ local function Notify(title, text, duration)
     end)
 end
 
+-- 🎯 所有目標物件與稀有度分類
 local Targets = {
     ["Noobini Pizzanini"] = {enabled = true, quality = "Common"},
     ["Lirilí Larilá"] = {enabled = true, quality = "Common"},
@@ -103,17 +104,23 @@ local function GetNextServer()
     end)
 
     if success and result and result.data then
+        local candidates = {}
         for _, server in ipairs(result.data) do
             if server.playing < 8 and not visited[server.id] and server.id ~= game.JobId then
-                visited[server.id] = true
-                return server.id
+                table.insert(candidates, server.id)
             end
+        end
+        if #candidates > 0 then
+            local randomIndex = math.random(1, #candidates)
+            local chosenServer = candidates[randomIndex]
+            visited[chosenServer] = true
+            return chosenServer
         end
     end
     return nil
 end
 
--- ESP 區域 --
+-- ESP 相關
 
 local highlightColor = Color3.fromRGB(255, 0, 0)
 
@@ -123,7 +130,7 @@ local qualityColors = {
     ["Epic"] = Color3.fromRGB(148, 0, 211),
     ["Legendary"] = Color3.fromRGB(255, 215, 0),
     ["Mythic"] = Color3.fromRGB(255, 0, 0),
-    ["Brainrot God"] = Color3.fromRGB(255, 69, 0),
+    ["Brainrot God"] = Color3.fromRGB(255, 69, 0), -- 你可自訂色彩
     ["Secret"] = Color3.fromRGB(0, 0, 0),
 }
 
@@ -191,19 +198,20 @@ local function addESP(obj)
     end
 end
 
--- 現有物件立即標記
+-- 標記現有物件
 for _, obj in ipairs(workspace:GetDescendants()) do
     addESP(obj)
 end
 
--- 新增物件自動標記
+-- 監聽新增物件，自動標記
 workspace.DescendantAdded:Connect(function(obj)
     addESP(obj)
 end)
 
+-- 完整跳服函數，保持不變但使用隨機跳服
 local function StartHopping()
     while true do
-        task.wait(0.25)
+        task.wait(0.2)
         local found, foundList = FoundTarget()
 
         if found then
@@ -224,4 +232,11 @@ local function StartHopping()
         if nextServer then
             Notify("跳轉伺服器", "伺服器 ID：" .. nextServer, 3)
             TeleportService:TeleportToPlaceInstance(PlaceId, nextServer, LocalPlayer)
-            task.wait(0.2)  -- 這裡改成 0.2 秒
+            task.wait(2)
+        else
+            task.wait(1) -- 若無伺服器可跳，短暫等待再試
+        end
+    end
+end
+
+StartHopping()
