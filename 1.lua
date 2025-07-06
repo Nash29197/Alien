@@ -154,7 +154,7 @@ local function disableGodMode()
 end
 
 MainTab:CreateToggle({
-    Name = "🛡️God 模式",
+    Name = "👑無敵模式",
     CurrentValue = false,
     Callback = function(Value)
         if Value then
