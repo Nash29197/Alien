@@ -76,48 +76,67 @@ MainTab:CreateToggle({
     end,
 })
 
--- 低重力功能
-local GravityModCons = {}
+-- 低重力 + 高跳功能
+local GravityJumpCons = {}
 local defaultGravity = 196.2
 local targetGravity = 29.43
+local defaultJumpPower = 50
+local highJumpPower = 100
 
-local function applyGravity(value)
-    workspace.Gravity = value
+local function applyGravityAndJump(humanoid)
+    workspace.Gravity = targetGravity
+    if humanoid then
+        humanoid.JumpPower = highJumpPower
+    end
 end
 
-local function setLowGravity()
-    applyGravity(targetGravity)
+local function setLowGravityAndHighJump()
+    local char = player.Character
+    local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
+    applyGravityAndJump(humanoid)
 
-    if GravityModCons.loop then GravityModCons.loop:Disconnect() end
-    if GravityModCons.charAdded then GravityModCons.charAdded:Disconnect() end
+    -- 清除之前的連線
+    if GravityJumpCons.heartbeat then GravityJumpCons.heartbeat:Disconnect() end
+    if GravityJumpCons.charAdded then GravityJumpCons.charAdded:Disconnect() end
 
-    GravityModCons.loop = RunService.Heartbeat:Connect(function()
+    -- 持續保持重力與跳躍力
+    GravityJumpCons.heartbeat = RunService.Heartbeat:Connect(function()
         if workspace.Gravity ~= targetGravity then
-            applyGravity(targetGravity)
+            workspace.Gravity = targetGravity
+        end
+        local hum = player.Character and player.Character:FindFirstChildWhichIsA("Humanoid")
+        if hum and hum.JumpPower ~= highJumpPower then
+            hum.JumpPower = highJumpPower
         end
     end)
 
-    GravityModCons.charAdded = player.CharacterAdded:Connect(function()
-        task.wait(1)
-        applyGravity(targetGravity)
+    -- 角色重生自動重新套用
+    GravityJumpCons.charAdded = player.CharacterAdded:Connect(function(char)
+        local hum = char:WaitForChild("Humanoid", 5)
+        task.wait(0.5)
+        applyGravityAndJump(hum)
     end)
 end
 
-local function resetGravity()
-    applyGravity(defaultGravity)
+local function resetGravityAndJump()
+    workspace.Gravity = defaultGravity
+    local humanoid = player.Character and player.Character:FindFirstChildWhichIsA("Humanoid")
+    if humanoid then
+        humanoid.JumpPower = defaultJumpPower
+    end
 
-    if GravityModCons.loop then GravityModCons.loop:Disconnect() end
-    if GravityModCons.charAdded then GravityModCons.charAdded:Disconnect() end
+    if GravityJumpCons.heartbeat then GravityJumpCons.heartbeat:Disconnect() end
+    if GravityJumpCons.charAdded then GravityJumpCons.charAdded:Disconnect() end
 end
 
 MainTab:CreateToggle({
-    Name = "🌕低重力模式",
+    Name = "🌕低重力 + 跳高",
     CurrentValue = false,
     Callback = function(Value)
         if Value then
-            setLowGravity()
+            setLowGravityAndHighJump()
         else
-            resetGravity()
+            resetGravityAndJump()
         end
     end,
 })
