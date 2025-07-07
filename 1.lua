@@ -165,16 +165,6 @@ MainTab:CreateToggle({
     end,
 })
 
-local Window = Rayfield:CreateWindow({
-    Name = "Nash ESP Finder",
-    LoadingTitle = "載入中...",
-    LoadingSubtitle = "Steal a Brainrot",
-    ConfigurationSaving = {
-        Enabled = false
-    },
-    KeySystem = false
-})
-
 local VisionTab = Window:CreateTab("視覺", 4483362458)
 
 local highlightColor = Color3.fromRGB(255, 0, 0)
@@ -341,7 +331,7 @@ end
 VisionTab:CreateDropdown({
     Name = "ESP腐腦",
     Options = {"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"},
-    CurrentOption = {},  -- 預設不選任何品質
+    CurrentOption = {},  
     MultipleOptions = true,
     Flag = "ESP腐腦",
     Callback = function(Options)
@@ -362,7 +352,6 @@ workspace.DescendantAdded:Connect(function(obj)
     end
 end)
 
--- 背景每1秒強制刷新，防止漏掉
 task.spawn(function()
     while true do
         refreshAllESP()
@@ -370,6 +359,6 @@ task.spawn(function()
     end
 end)
 
- local ShopTab = Window:CreateTab("商店", 4483362458) -- Title, Image
+ local ShopTab = Window:CreateTab("商店", 4483362458) 
 
 Rayfield:LoadConfiguration()
