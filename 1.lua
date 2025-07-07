@@ -21,7 +21,7 @@ local player = Players.LocalPlayer
 if not game:IsLoaded() then game.Loaded:Wait() end
 repeat task.wait() until player.Character and player.Character:FindFirstChild("Humanoid")
 
-local MainTab = Window:CreateTab("玩家", 4483362458)
+local MainTab = Window:CreateTab("玩家", 0)
 
 -- WalkSpeed 功能
 local HumanModCons = {}
@@ -165,7 +165,7 @@ MainTab:CreateToggle({
     end,
 })
 
-local VisionTab = Window:CreateTab("視覺", 4483362458)
+local VisionTab = Window:CreateTab("視覺", 0)
 
 local highlightColor = Color3.fromRGB(255, 0, 0)
 local qualityColors = {
@@ -359,6 +359,6 @@ task.spawn(function()
     end
 end)
 
- local ShopTab = Window:CreateTab("商店", 4483362458) 
+ local ShopTab = Window:CreateTab("商店", 0) 
 
 Rayfield:LoadConfiguration()
