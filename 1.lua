@@ -229,10 +229,14 @@ local Targets = {
     ["Garama and Madundung"] = {quality = "Secret"},
 }
 
-local function clearESP()
+getgenv().Rarity = getgenv().Rarity or {}
+
+local function clearAllESP()
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("Model") then
-            if obj:FindFirstChild("ESP_Highlight") then obj.ESP_Highlight:Destroy() end
+            local hl = obj:FindFirstChild("ESP_Highlight")
+            if hl then hl:Destroy() end
+
             for _, part in ipairs(obj:GetChildren()) do
                 if part:IsA("BasePart") then
                     local billboard = part:FindFirstChild("ESP_NameTag")
@@ -243,11 +247,16 @@ local function clearESP()
     end
 end
 
-local function applyESP(obj)
-    if not obj:IsA("Model") then return end
-    if not Targets[obj.Name] then return end
+local function shouldApplyESP(obj)
+    if not obj:IsA("Model") then return false end
+    if not Targets[obj.Name] then return false end
     local rarity = Targets[obj.Name].quality
-    if not (getgenv().Rarity and getgenv().Rarity[rarity] and getgenv().Rarity[rarity].enabled) then return end
+    if not getgenv().Rarity[rarity] or not getgenv().Rarity[rarity].enabled then return false end
+    return true
+end
+
+local function applyESP(obj)
+    if not shouldApplyESP(obj) then return end
 
     if obj:FindFirstChild("ESP_Highlight") then obj.ESP_Highlight:Destroy() end
     for _, part in ipairs(obj:GetChildren()) do
@@ -290,7 +299,7 @@ local function applyESP(obj)
         label.Size = UDim2.new(1, 0, 1, 0)
         label.BackgroundTransparency = 1
         label.Text = obj.Name
-        label.TextColor3 = qualityColors[rarity] or Color3.new(1, 1, 1)
+        label.TextColor3 = qualityColors[Targets[obj.Name].quality] or Color3.new(1, 1, 1)
         label.TextStrokeColor3 = Color3.new(0, 0, 0)
         label.TextStrokeTransparency = 0.5
         label.TextScaled = true
@@ -299,29 +308,34 @@ local function applyESP(obj)
     end
 end
 
+local function refreshAllESP()
+    clearAllESP()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if shouldApplyESP(obj) then
+            applyESP(obj)
+        end
+    end
+end
+
 VisionTab:CreateDropdown({
     Name = "ESP腐腦",
     Options = {"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"},
-    CurrentOption = {"Brainrot God", "Mythic"},
+    CurrentOption = {},  -- 預設不選擇
     MultipleOptions = true,
     Flag = "ESP腐腦",
     Callback = function(Options)
-        getgenv().Rarity = {}
         for _, rarity in ipairs({"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"}) do
             getgenv().Rarity[rarity] = {enabled = table.find(Options, rarity) ~= nil}
         end
-
-        clearESP()
-
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            applyESP(obj)
-        end
+        refreshAllESP()
     end
 })
 
 workspace.DescendantAdded:Connect(function(obj)
     task.defer(function()
-        applyESP(obj)
+        if shouldApplyESP(obj) then
+            applyESP(obj)
+        end
     end)
 end)
 
