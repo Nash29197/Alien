@@ -165,6 +165,16 @@ MainTab:CreateToggle({
     end,
 })
 
+local Window = Rayfield:CreateWindow({
+    Name = "Nash ESP Finder",
+    LoadingTitle = "載入中...",
+    LoadingSubtitle = "Steal a Brainrot",
+    ConfigurationSaving = {
+        Enabled = false
+    },
+    KeySystem = false
+})
+
 local VisionTab = Window:CreateTab("視覺", 4483362458)
 
 local highlightColor = Color3.fromRGB(255, 0, 0)
@@ -231,9 +241,11 @@ local Targets = {
 
 getgenv().Rarity = getgenv().Rarity or {}
 
+local ESPMarked = {}
+
 local function clearAllESP()
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") then
+    for obj,_ in pairs(ESPMarked) do
+        if obj and obj.Parent then
             local hl = obj:FindFirstChild("ESP_Highlight")
             if hl then hl:Destroy() end
 
@@ -244,11 +256,12 @@ local function clearAllESP()
                 end
             end
         end
+        ESPMarked[obj] = nil
     end
 end
 
 local function shouldApplyESP(obj)
-    if not obj:IsA("Model") then return false end
+    if not obj or not obj:IsA("Model") then return false end
     if not Targets[obj.Name] then return false end
     local rarity = Targets[obj.Name].quality
     if not getgenv().Rarity[rarity] or not getgenv().Rarity[rarity].enabled then return false end
@@ -256,9 +269,15 @@ local function shouldApplyESP(obj)
 end
 
 local function applyESP(obj)
+    if ESPMarked[obj] then return end -- 避免重複標記
     if not shouldApplyESP(obj) then return end
 
-    if obj:FindFirstChild("ESP_Highlight") then obj.ESP_Highlight:Destroy() end
+    ESPMarked[obj] = true
+
+    -- 清除舊標籤
+    if obj:FindFirstChild("ESP_Highlight") then
+        obj.ESP_Highlight:Destroy()
+    end
     for _, part in ipairs(obj:GetChildren()) do
         if part:IsA("BasePart") then
             local billboard = part:FindFirstChild("ESP_NameTag")
@@ -266,6 +285,7 @@ local function applyESP(obj)
         end
     end
 
+    -- 新增 Highlight
     local highlight = Instance.new("Highlight")
     highlight.Name = "ESP_Highlight"
     highlight.FillColor = highlightColor
@@ -275,6 +295,7 @@ local function applyESP(obj)
     highlight.Adornee = obj
     highlight.Parent = obj
 
+    -- 找HumanoidRootPart或最高的部件做Adornee
     local adorneePart = obj:FindFirstChild("HumanoidRootPart")
     if not adorneePart then
         local highestY = -math.huge
@@ -320,7 +341,7 @@ end
 VisionTab:CreateDropdown({
     Name = "ESP腐腦",
     Options = {"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"},
-    CurrentOption = {},  -- 預設不選擇
+    CurrentOption = {},  -- 預設不選任何品質
     MultipleOptions = true,
     Flag = "ESP腐腦",
     Callback = function(Options)
@@ -332,11 +353,21 @@ VisionTab:CreateDropdown({
 })
 
 workspace.DescendantAdded:Connect(function(obj)
-    task.defer(function()
-        if shouldApplyESP(obj) then
-            applyESP(obj)
-        end
-    end)
+    if obj:IsA("Model") then
+        task.delay(0.3, function()
+            if shouldApplyESP(obj) then
+                applyESP(obj)
+            end
+        end)
+    end
+end)
+
+-- 背景每1秒強制刷新，防止漏掉
+task.spawn(function()
+    while true do
+        refreshAllESP()
+        task.wait(1)
+    end
 end)
 
  local ShopTab = Window:CreateTab("商店", 4483362458) -- Title, Image
