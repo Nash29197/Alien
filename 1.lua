@@ -167,6 +167,19 @@ MainTab:CreateToggle({
 
 -- 額外預留頁籤
 Window:CreateTab("視覺", 4483362458)
+
+local Dropdown = Tab:CreateDropdown({
+    Name = "ESP腐腦",
+    Options = {"Option 1","Option 2"},
+    CurrentOption = {"Option 1"},
+    MultipleOptions = false,
+    Flag = "Dropdown1", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+    Callback = function(Options)
+    -- The function that takes place when the selected option is changed
+    -- The variable (Options) is a table of strings for the current selected options
+    end,
+ })
+
 Window:CreateTab("商店", 4483362458)
 
 Rayfield:LoadConfiguration()
