@@ -230,6 +230,70 @@ local Targets = {
     ["Garama and Madundung"] = {quality = "Secret"},
 }
 
+-- 自動套 ESP 函數
+local function applyESP(obj)
+    if not obj:IsA("Model") then return end
+    if not Targets[obj.Name] then return end
+    local rarity = Targets[obj.Name].quality
+    if not (getgenv().Rarity and getgenv().Rarity[rarity] and getgenv().Rarity[rarity].enabled) then return end
+
+    local highestPart = nil
+    for _, part in ipairs(obj:GetDescendants()) do
+        if part:IsA("BasePart") then
+            if not part:FindFirstChild("ESP_Highlight") then
+                local highlight = Instance.new("Highlight")
+                highlight.Name = "ESP_Highlight"
+                highlight.FillColor = highlightColor
+                highlight.FillTransparency = 0
+                highlight.OutlineColor = Color3.new(1, 1, 1)
+                highlight.OutlineTransparency = 0
+                highlight.Adornee = part
+                highlight.Parent = part
+            end
+
+            if not highestPart or part.Position.Y > highestPart.Position.Y then
+                highestPart = part
+            end
+        end
+    end
+
+    if highestPart and not highestPart:FindFirstChild("ESP_NameTag") then
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "ESP_NameTag"
+        billboard.Size = UDim2.new(0, 100, 0, 20)
+        billboard.StudsOffset = Vector3.new(0, 1.5, 0)
+        billboard.AlwaysOnTop = true
+        billboard.Adornee = highestPart
+        billboard.Parent = highestPart
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Text = obj.Name
+        label.TextColor3 = qualityColors[rarity] or Color3.new(1, 1, 1)
+        label.TextStrokeColor3 = Color3.new(0, 0, 0)
+        label.TextStrokeTransparency = 0.5
+        label.TextScaled = true
+        label.Font = Enum.Font.GothamBold
+        label.Parent = billboard
+    end
+end
+
+-- 清除 ESP（用於切換後刷新）
+local function clearESP()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") then
+            for _, part in ipairs(obj:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    if part:FindFirstChild("ESP_Highlight") then part.ESP_Highlight:Destroy() end
+                    if part:FindFirstChild("ESP_NameTag") then part.ESP_NameTag:Destroy() end
+                end
+            end
+        end
+    end
+end
+
+-- 建立 Dropdown
 VisionTab:CreateDropdown({
     Name = "ESP腐腦",
     Options = {"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"},
@@ -237,72 +301,29 @@ VisionTab:CreateDropdown({
     MultipleOptions = true,
     Flag = "ESP腐腦",
     Callback = function(Options)
+        -- 更新篩選條件
         getgenv().Rarity = {}
         for _, rarity in ipairs({"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"}) do
             getgenv().Rarity[rarity] = {enabled = table.find(Options, rarity) ~= nil}
         end
 
-        -- 清除舊的 ESP
+        -- 先清除舊ESP
+        clearESP()
+
+        -- 重新套 ESP
         for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("Model") then
-                for _, part in ipairs(obj:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        if part:FindFirstChild("ESP_Highlight") then part.ESP_Highlight:Destroy() end
-                        if part:FindFirstChild("ESP_NameTag") then part.ESP_NameTag:Destroy() end
-                    end
-                end
-            end
-        end
-
-        -- 加上新的 ESP
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("Model") and Targets[obj.Name] then
-                local rarity = Targets[obj.Name].quality
-                if getgenv().Rarity[rarity] and getgenv().Rarity[rarity].enabled then
-                    local highestPart = nil
-                    for _, part in ipairs(obj:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            if not part:FindFirstChild("ESP_Highlight") then
-                                local highlight = Instance.new("Highlight")
-                                highlight.Name = "ESP_Highlight"
-                                highlight.FillColor = highlightColor
-                                highlight.FillTransparency = 0
-                                highlight.OutlineColor = Color3.new(1, 1, 1)
-                                highlight.OutlineTransparency = 0
-                                highlight.Adornee = part
-                                highlight.Parent = part
-                            end
-                            if not highestPart or part.Position.Y > highestPart.Position.Y then
-                                highestPart = part
-                            end
-                        end
-                    end
-
-                    if highestPart and not highestPart:FindFirstChild("ESP_NameTag") then
-                        local billboard = Instance.new("BillboardGui")
-                        billboard.Name = "ESP_NameTag"
-                        billboard.Size = UDim2.new(0, 100, 0, 20)
-                        billboard.StudsOffset = Vector3.new(0, 1.5, 0)
-                        billboard.AlwaysOnTop = true
-                        billboard.Adornee = highestPart
-                        billboard.Parent = highestPart
-
-                        local label = Instance.new("TextLabel")
-                        label.Size = UDim2.new(1, 0, 1, 0)
-                        label.BackgroundTransparency = 1
-                        label.Text = obj.Name
-                        label.TextColor3 = qualityColors[rarity] or Color3.new(1, 1, 1)
-                        label.TextStrokeColor3 = Color3.new(0, 0, 0)
-                        label.TextStrokeTransparency = 0.5
-                        label.TextScaled = true
-                        label.Font = Enum.Font.GothamBold
-                        label.Parent = billboard
-                    end
-                end
-            end
+            applyESP(obj)
         end
     end
 })
+
+-- 自動偵測新模型，並套用 ESP
+workspace.DescendantAdded:Connect(function(obj)
+    -- 延遲確保模型結構載入完成
+    task.defer(function()
+        applyESP(obj)
+    end)
+end)
 
  local ShopTab = Window:CreateTab("商店", 4483362458) -- Title, Image
 
