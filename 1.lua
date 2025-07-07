@@ -13,9 +13,13 @@ local Window = Rayfield:CreateWindow({
 })
 
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local player = game.Players.LocalPlayer
+local localplr = game.Players.LocalPlayer
 
 -- 等待角色完全加載
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -76,67 +80,54 @@ MainTab:CreateToggle({
     end,
 })
 
--- 低重力 + 高跳功能
-local GravityJumpCons = {}
-local defaultGravity = 196.2
-local targetGravity = 29.43
-local defaultJumpPower = 50
-local highJumpPower = 100
+local HumanModCons = {}
 
-local function applyGravityAndJump(humanoid)
-    workspace.Gravity = targetGravity
-    if humanoid then
-        humanoid.JumpPower = highJumpPower
+local function setJumpHeight(height)
+    local Char = player.Character or workspace:FindFirstChild(player.Name)
+    local Human = Char and Char:FindFirstChildWhichIsA("Humanoid")
+
+    local function JumpHeightChange()
+        if Char and Human then
+            Human.JumpHeight = height
+        end
     end
-end
 
-local function setLowGravityAndHighJump()
-    local char = player.Character
-    local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
-    applyGravityAndJump(humanoid)
+    JumpHeightChange()
 
-    -- 清除之前的連線
-    if GravityJumpCons.heartbeat then GravityJumpCons.heartbeat:Disconnect() end
-    if GravityJumpCons.charAdded then GravityJumpCons.charAdded:Disconnect() end
+    if HumanModCons.jhLoop then HumanModCons.jhLoop:Disconnect() end
+    if HumanModCons.jhCA then HumanModCons.jhCA:Disconnect() end
 
-    -- 持續保持重力與跳躍力
-    GravityJumpCons.heartbeat = RunService.Heartbeat:Connect(function()
-        if workspace.Gravity ~= targetGravity then
-            workspace.Gravity = targetGravity
-        end
-        local hum = player.Character and player.Character:FindFirstChildWhichIsA("Humanoid")
-        if hum and hum.JumpPower ~= highJumpPower then
-            hum.JumpPower = highJumpPower
-        end
-    end)
+    if Human then
+        HumanModCons.jhLoop = Human:GetPropertyChangedSignal("JumpHeight"):Connect(JumpHeightChange)
+    end
 
-    -- 角色重生自動重新套用
-    GravityJumpCons.charAdded = player.CharacterAdded:Connect(function(char)
-        local hum = char:WaitForChild("Humanoid", 5)
-        task.wait(0.5)
-        applyGravityAndJump(hum)
+    HumanModCons.jhCA = player.CharacterAdded:Connect(function(nChar)
+        Char = nChar
+        Human = nChar:WaitForChild("Humanoid")
+        JumpHeightChange()
+        if HumanModCons.jhLoop then HumanModCons.jhLoop:Disconnect() end
+        HumanModCons.jhLoop = Human:GetPropertyChangedSignal("JumpHeight"):Connect(JumpHeightChange)
     end)
 end
 
-local function resetGravityAndJump()
-    workspace.Gravity = defaultGravity
-    local humanoid = player.Character and player.Character:FindFirstChildWhichIsA("Humanoid")
-    if humanoid then
-        humanoid.JumpPower = defaultJumpPower
+local function resetJumpHeight()
+    local Char = player.Character or workspace:FindFirstChild(player.Name)
+    local Human = Char and Char:FindFirstChildWhichIsA("Humanoid")
+    if Human then
+        Human.JumpHeight = 7.2 -- 預設值
     end
-
-    if GravityJumpCons.heartbeat then GravityJumpCons.heartbeat:Disconnect() end
-    if GravityJumpCons.charAdded then GravityJumpCons.charAdded:Disconnect() end
+    if HumanModCons.jhLoop then HumanModCons.jhLoop:Disconnect() end
+    if HumanModCons.jhCA then HumanModCons.jhCA:Disconnect() end
 end
 
 MainTab:CreateToggle({
-    Name = "🌕低重力 + 跳高",
+    Name = "🐇跳躍MAX",
     CurrentValue = false,
     Callback = function(Value)
         if Value then
-            setLowGravityAndHighJump()
+            setJumpHeight(14.4) -- 加倍跳躍
         else
-            resetGravityAndJump()
+            resetJumpHeight()
         end
     end,
 })
