@@ -76,6 +76,52 @@ MainTab:CreateToggle({
     end,
 })
 
+-- 低重力功能
+local GravityModCons = {}
+local defaultGravity = 196.2
+local targetGravity = 29.43
+
+local function applyGravity(value)
+    workspace.Gravity = value
+end
+
+local function setLowGravity()
+    applyGravity(targetGravity)
+
+    if GravityModCons.loop then GravityModCons.loop:Disconnect() end
+    if GravityModCons.charAdded then GravityModCons.charAdded:Disconnect() end
+
+    GravityModCons.loop = RunService.Heartbeat:Connect(function()
+        if workspace.Gravity ~= targetGravity then
+            applyGravity(targetGravity)
+        end
+    end)
+
+    GravityModCons.charAdded = player.CharacterAdded:Connect(function()
+        task.wait(1)
+        applyGravity(targetGravity)
+    end)
+end
+
+local function resetGravity()
+    applyGravity(defaultGravity)
+
+    if GravityModCons.loop then GravityModCons.loop:Disconnect() end
+    if GravityModCons.charAdded then GravityModCons.charAdded:Disconnect() end
+end
+
+MainTab:CreateToggle({
+    Name = "🌕低重力模式",
+    CurrentValue = false,
+    Callback = function(Value)
+        if Value then
+            setLowGravity()
+        else
+            resetGravity()
+        end
+    end,
+})
+
 -- 無限跳功能
 local jumpConnection = nil
 local function setInfiniteJump(enabled)
