@@ -180,6 +180,6 @@ local Dropdown = VisionTab:CreateDropdown({
     end,
  })
 
-Window:CreateTab("商店", 4483362458)
+ local ShopTab = Window:CreateTab("商店", 4483362458) -- Title, Image
 
 Rayfield:LoadConfiguration()
