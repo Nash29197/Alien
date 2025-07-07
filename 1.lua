@@ -190,7 +190,7 @@ local qualityColors = {
 
 local Targets = {
     ["Noobini Pizzanini"] = {quality = "Common"},
-    ["Lirilí Larilá"] = {quality = "Common"},
+    ["Lirilì Larilà"] = {quality = "Common"},
     ["Tim Cheese"] = {quality = "Common"},
     ["Fluriflura"] = {quality = "Common"},
     ["Talpa Di Fero"] = {quality = "Common"},
