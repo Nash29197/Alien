@@ -19,7 +19,6 @@ local player = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local player = game.Players.LocalPlayer
-local localplr = game.Players.LocalPlayer
 
 -- 等待角色完全加載
 if not game:IsLoaded() then game.Loaded:Wait() end
