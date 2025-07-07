@@ -19,12 +19,13 @@ local player = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local player = game.Players.LocalPlayer
+local localplr = game.Players.LocalPlayer
 
 -- 等待角色完全加載
 if not game:IsLoaded() then game.Loaded:Wait() end
 repeat task.wait() until player.Character and player.Character:FindFirstChild("Humanoid")
 
-local MainTab = Window:CreateTab("玩家", 0)
+local MainTab = Window:CreateTab("🙂 玩家", 0)
 
 -- WalkSpeed 功能
 local HumanModCons = {}
@@ -72,7 +73,7 @@ MainTab:CreateToggle({
     CurrentValue = false,
     Callback = function(Value)
         if Value then
-            setWalkSpeed(50)
+            setWalkSpeed(48)
         else
             resetWalkSpeed()
         end
@@ -124,7 +125,7 @@ MainTab:CreateToggle({
     CurrentValue = false,
     Callback = function(Value)
         if Value then
-            setJumpHeight(14.4) -- 加倍跳躍
+            setJumpHeight(14) -- 加倍跳躍
         else
             resetJumpHeight()
         end
@@ -220,7 +221,7 @@ MainTab:CreateToggle({
     end,
 })
 
-local VisionTab = Window:CreateTab("視覺", 0)
+local VisionTab = Window:CreateTab("👁️ 視覺", 0)
 
 local highlightColor = Color3.fromRGB(255, 0, 0)
 local qualityColors = {
@@ -414,6 +415,6 @@ task.spawn(function()
     end
 end)
 
- local ShopTab = Window:CreateTab("商店", 0) 
+ local ShopTab = Window:CreateTab("🛒 商店", 0) 
 
 Rayfield:LoadConfiguration()
