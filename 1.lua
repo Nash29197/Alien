@@ -166,19 +166,143 @@ MainTab:CreateToggle({
 })
 
 -- 額外預留頁籤
-local VisionTab = Window:CreateTab("視覺", 4483362458) -- Title, Image
+local VisionTab = Window:CreateTab("視覺", 4483362458)
 
-local Dropdown = VisionTab:CreateDropdown({
+local highlightColor = Color3.fromRGB(255, 0, 0)
+local qualityColors = {
+    ["Common"] = Color3.fromRGB(255, 255, 255),
+    ["Rare"] = Color3.fromRGB(30, 144, 255),
+    ["Epic"] = Color3.fromRGB(148, 0, 211),
+    ["Legendary"] = Color3.fromRGB(255, 215, 0),
+    ["Mythic"] = Color3.fromRGB(255, 0, 0),
+    ["Secret"] = Color3.fromRGB(0, 0, 0),
+    ["Brainrot God"] = Color3.fromRGB(255, 105, 180),
+}
+
+local Targets = {
+    ["Noobini Pizzanini"] = {quality = "Common"},
+    ["Lirilí Larilá"] = {quality = "Common"},
+    ["Tim Cheese"] = {quality = "Common"},
+    ["Fluriflura"] = {quality = "Common"},
+    ["Talpa Di Fero"] = {quality = "Common"},
+    ["Svinina Bombardino"] = {quality = "Common"},
+    ["Pipi Kiwi"] = {quality = "Common"},
+    ["Trippi Troppi"] = {quality = "Rare"},
+    ["Tung Tung Tung Sahur"] = {quality = "Rare"},
+    ["Gangster Footera"] = {quality = "Rare"},
+    ["Boneca Ambalabu"] = {quality = "Rare"},
+    ["Ta Ta Ta Ta Sahur"] = {quality = "Rare"},
+    ["Tric Trac Baraboom"] = {quality = "Rare"},
+    ["Bandito Bobritto"] = {quality = "Rare"},
+    ["Cappuccino Assassino"] = {quality = "Epic"},
+    ["Brr Brr Patapim"] = {quality = "Epic"},
+    ["Trulimero Trulicina"] = {quality = "Epic"},
+    ["Bambini Crostini"] = {quality = "Epic"},
+    ["Bananita Dolphinita"] = {quality = "Epic"},
+    ["Perochello Lemonchello"] = {quality = "Epic"},
+    ["Brri Brri Bicus Dicus Bombicus"] = {quality = "Epic"},
+    ["Burbaloni Loliloli"] = {quality = "Legendary"},
+    ["Chimpanzini Bananini"] = {quality = "Legendary"},
+    ["Ballerina Cappuccina"] = {quality = "Legendary"},
+    ["Chef Crabracadabra"] = {quality = "Legendary"},
+    ["Glorbo Fruttodrillo"] = {quality = "Legendary"},
+    ["Blueberrinni Octopusini"] = {quality = "Legendary"},
+    ["Lionel Cactuseli"] = {quality = "Legendary"},
+    ["Frigo Camelo"] = {quality = "Mythic"},
+    ["Orangutini Ananassini"] = {quality = "Mythic"},
+    ["Rhino Toasterino"] = {quality = "Mythic"},
+    ["Bombardiro Crocodilo"] = {quality = "Mythic"},
+    ["Bombombini Gusini"] = {quality = "Mythic"},
+    ["Cavallo Virtuoso"] = {quality = "Mythic"},
+    ["Cocofanto Elefanto"] = {quality = "Brainrot God"},
+    ["Gattatino Nyanino"] = {quality = "Brainrot God"},
+    ["Girafa Celestre"] = {quality = "Brainrot God"},
+    ["Tralalero Tralala"] = {quality = "Brainrot God"},
+    ["Matteo"] = {quality = "Brainrot God"},
+    ["Odin Din Din Dun"] = {quality = "Brainrot God"},
+    ["Trenostruzzo Turbo 3000"] = {quality = "Brainrot God"},
+    ["Unclito Samito"] = {quality = "Brainrot God"},
+    ["La Vacca Saturno Saturnita"] = {quality = "Secret"},
+    ["Los Tralaleritos"] = {quality = "Secret"},
+    ["Graipuss Medussi"] = {quality = "Secret"},
+    ["La Grande Combinazione"] = {quality = "Secret"},
+    ["Sammyni Spyderini"] = {quality = "Secret"},
+    ["Garama and Madundung"] = {quality = "Secret"},
+}
+
+VisionTab:CreateDropdown({
     Name = "ESP腐腦",
-    Options = {"Option 1","Option 2"},
-    CurrentOption = {"Option 1"},
-    MultipleOptions = false,
-    Flag = "ESP腐腦", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+    Options = {"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"},
+    CurrentOption = {"Brainrot God", "Mythic"},
+    MultipleOptions = true,
+    Flag = "ESP腐腦",
     Callback = function(Options)
-    -- The function that takes place when the selected option is changed
-    -- The variable (Options) is a table of strings for the current selected options
-    end,
- })
+        getgenv().Rarity = {}
+        for _, rarity in ipairs({"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"}) do
+            getgenv().Rarity[rarity] = {enabled = table.find(Options, rarity) ~= nil}
+        end
+
+        -- 清除舊的 ESP
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("Model") then
+                for _, part in ipairs(obj:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        if part:FindFirstChild("ESP_Highlight") then part.ESP_Highlight:Destroy() end
+                        if part:FindFirstChild("ESP_NameTag") then part.ESP_NameTag:Destroy() end
+                    end
+                end
+            end
+        end
+
+        -- 加上新的 ESP
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("Model") and Targets[obj.Name] then
+                local rarity = Targets[obj.Name].quality
+                if getgenv().Rarity[rarity] and getgenv().Rarity[rarity].enabled then
+                    local highestPart = nil
+                    for _, part in ipairs(obj:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            if not part:FindFirstChild("ESP_Highlight") then
+                                local highlight = Instance.new("Highlight")
+                                highlight.Name = "ESP_Highlight"
+                                highlight.FillColor = highlightColor
+                                highlight.FillTransparency = 0
+                                highlight.OutlineColor = Color3.new(1, 1, 1)
+                                highlight.OutlineTransparency = 0
+                                highlight.Adornee = part
+                                highlight.Parent = part
+                            end
+                            if not highestPart or part.Position.Y > highestPart.Position.Y then
+                                highestPart = part
+                            end
+                        end
+                    end
+
+                    if highestPart and not highestPart:FindFirstChild("ESP_NameTag") then
+                        local billboard = Instance.new("BillboardGui")
+                        billboard.Name = "ESP_NameTag"
+                        billboard.Size = UDim2.new(0, 100, 0, 20)
+                        billboard.StudsOffset = Vector3.new(0, 1.5, 0)
+                        billboard.AlwaysOnTop = true
+                        billboard.Adornee = highestPart
+                        billboard.Parent = highestPart
+
+                        local label = Instance.new("TextLabel")
+                        label.Size = UDim2.new(1, 0, 1, 0)
+                        label.BackgroundTransparency = 1
+                        label.Text = obj.Name
+                        label.TextColor3 = qualityColors[rarity] or Color3.new(1, 1, 1)
+                        label.TextStrokeColor3 = Color3.new(0, 0, 0)
+                        label.TextStrokeTransparency = 0.5
+                        label.TextScaled = true
+                        label.Font = Enum.Font.GothamBold
+                        label.Parent = billboard
+                    end
+                end
+            end
+        end
+    end
+})
 
  local ShopTab = Window:CreateTab("商店", 4483362458) -- Title, Image
 
