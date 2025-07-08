@@ -12,18 +12,12 @@ local Window = Rayfield:CreateWindow({
     }
 })
 
--- 🔧 所有服務統一在這裡取用
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
 
--- 🔒 本地玩家統一定義
-local localplr = Players.LocalPlayer
-
+local player = Players.LocalPlayer
 
 -- 等待角色完全加載
 if not game:IsLoaded() then game.Loaded:Wait() end
