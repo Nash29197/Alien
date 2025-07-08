@@ -123,7 +123,7 @@ MainTab:CreateToggle({
     CurrentValue = false,
     Callback = function(Value)
         if Value then
-            setJumpHeight(13) -- 加倍跳躍
+            setJumpHeight(14) -- 加倍跳躍
         else
             resetJumpHeight()
         end
@@ -131,7 +131,7 @@ MainTab:CreateToggle({
 })
 
 -- 低重力功能
-local lowGravity = 130 -- 低重力數值
+local lowGravity = 150 -- 低重力數值
 local BodyForceName = "LowGravityForce"
 
 local function applyLowGravity()
