@@ -270,6 +270,112 @@ MainTab:CreateToggle({
 -- 視覺 Tab (ESP)
 local VisionTab = Window:CreateTab("👁️ 視覺", 0)
 
+local playerESPEnabled = false
+local playerESPConnections = {}
+local playerESPList = {}
+local espColor = Color3.fromRGB(0, 255, 0)
+
+local function clearPlayerESP()
+    for char, _ in pairs(playerESPList) do
+        if char and char.Parent then
+            local hl = char:FindFirstChild("ESP_Highlight")
+            if hl then hl:Destroy() end
+
+            for _, part in ipairs(char:GetChildren()) do
+                if part:IsA("BasePart") then
+                    local bb = part:FindFirstChild("ESP_NameTag")
+                    if bb then bb:Destroy() end
+                end
+            end
+        end
+        playerESPList[char] = nil
+    end
+end
+
+local function applyPlayerESP(character, player)
+    if not character or not player or player == Players.LocalPlayer then return end
+    if playerESPList[character] then return end
+    playerESPList[character] = true
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.FillColor = espColor
+    highlight.FillTransparency = 0.25
+    highlight.OutlineColor = espColor
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = character
+    highlight.Parent = character
+
+    local adorneePart = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+    if adorneePart then
+        local bb = Instance.new("BillboardGui")
+        bb.Name = "ESP_NameTag"
+        bb.Size = UDim2.new(0, 100, 0, 24)
+        bb.StudsOffset = Vector3.new(0, 2.5, 0)
+        bb.AlwaysOnTop = true
+        bb.Adornee = adorneePart
+        bb.Parent = adorneePart
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Text = player.DisplayName
+        label.TextColor3 = espColor
+        label.TextStrokeColor3 = Color3.new(0, 0, 0)
+        label.TextStrokeTransparency = 0.5
+        label.TextScaled = true
+        label.Font = Enum.Font.GothamBold
+        label.Parent = bb
+    end
+end
+
+local function startPlayerESP()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= Players.LocalPlayer and p.Character then
+            applyPlayerESP(p.Character, p)
+        end
+    end
+
+    table.insert(playerESPConnections, Players.PlayerAdded:Connect(function(p)
+        table.insert(playerESPConnections, p.CharacterAdded:Connect(function(char)
+            task.wait(1)
+            if playerESPEnabled then
+                applyPlayerESP(char, p)
+            end
+        end))
+    end))
+
+    table.insert(playerESPConnections, RunService.RenderStepped:Connect(function()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= Players.LocalPlayer and p.Character then
+                applyPlayerESP(p.Character, p)
+            end
+        end
+    end))
+end
+
+local function stopPlayerESP()
+    clearPlayerESP()
+    for _, c in ipairs(playerESPConnections) do
+        if typeof(c) == "RBXScriptConnection" then c:Disconnect() end
+    end
+    playerESPConnections = {}
+end
+
+VisionTab:CreateToggle({
+    Name = "ESP玩家",
+    CurrentValue = false,
+    Callback = function(Value)
+        playerESPEnabled = Value
+        if Value then
+            startPlayerESP()
+        else
+            stopPlayerESP()
+        end
+    end,
+})
+
+
 local highlightColor = Color3.fromRGB(255, 0, 0)
 local qualityColors = {
     ["Common"] = Color3.fromRGB(255, 255, 255),
@@ -431,11 +537,11 @@ local function refreshAllESP()
 end
 
 VisionTab:CreateDropdown({
-    Name = "ESP腐腦",
+    Name = "ESP腦腐",
     Options = {"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"},
     CurrentOption = {},  
     MultipleOptions = true,
-    Flag = "ESP腐腦",
+    Flag = "ESP腦腐",
     Callback = function(Options)
         for _, rarity in ipairs({"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"}) do
             getgenv().Rarity[rarity] = {enabled = table.find(Options, rarity) ~= nil}
