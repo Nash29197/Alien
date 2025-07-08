@@ -265,51 +265,84 @@ MainTab:CreateToggle({
     end,
 })
 
-local collisionConnection = nil
+local antiragdoll = false
+local ragdollConnections = {}
 
-local function setNoCollision(enabled)
-    if enabled then
-        local function disableCollision()
-            local char = player.Character
-            if char then
-                for _, part in ipairs(char:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end
-        end
-
-        -- 初始設定一次
-        disableCollision()
-
-        -- 當角色重生時，重新設定無碰撞
-        collisionConnection = player.CharacterAdded:Connect(function(char)
-            char:WaitForChild("HumanoidRootPart")
-            disableCollision()
-        end)
-    else
-        if collisionConnection then
-            collisionConnection:Disconnect()
-            collisionConnection = nil
-        end
-        -- 恢復碰撞
-        local char = player.Character
-        if char then
-            for _, part in ipairs(char:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
-        end
+local function forceStandUp(humanoid)
+    local state = humanoid:GetState()
+    if state == Enum.HumanoidStateType.Ragdoll or state == Enum.HumanoidStateType.Physics then
+        humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
     end
 end
 
+local function monitorCharacter(character)
+    if not character then return end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    -- Heartbeat 持續監控防倒地
+    local conn
+    conn = RunService.Heartbeat:Connect(function()
+        if not antiragdoll or not humanoid or humanoid.Health <= 0 then
+            if conn then conn:Disconnect() end
+            return
+        end
+        forceStandUp(humanoid)
+    end)
+    table.insert(ragdollConnections, conn)
+end
+
+local function monitorPlayer(player)
+    if player == Players.LocalPlayer then return end
+
+    if player.Character then
+        monitorCharacter(player.Character)
+    end
+    local charAddedConn = player.CharacterAdded:Connect(function(char)
+        if antiragdoll then
+            monitorCharacter(char)
+        end
+    end)
+    table.insert(ragdollConnections, charAddedConn)
+end
+
+local function clearConnections()
+    for _, c in pairs(ragdollConnections) do
+        if c then c:Disconnect() end
+    end
+    ragdollConnections = {}
+end
+
+-- 初始化監控已存在玩家
+for _, p in pairs(Players:GetPlayers()) do
+    monitorPlayer(p)
+end
+
+-- 新加入玩家監控
+local playerAddedConn = Players.PlayerAdded:Connect(function(p)
+    monitorPlayer(p)
+end)
+table.insert(ragdollConnections, playerAddedConn)
+
+-- UI 切換開關
 MainTab:CreateToggle({
-    Name = "🚫 無碰撞",
+    Name = "🛡️ 防摔倒 / 防 Ragdoll",
     CurrentValue = false,
     Callback = function(value)
-        setNoCollision(value)
+        antiragdoll = value
+        if antiragdoll then
+            -- 重新監控所有玩家角色
+            clearConnections()
+            for _, p in pairs(Players:GetPlayers()) do
+                monitorPlayer(p)
+            end
+            playerAddedConn = Players.PlayerAdded:Connect(function(p)
+                monitorPlayer(p)
+            end)
+            table.insert(ragdollConnections, playerAddedConn)
+        else
+            clearConnections()
+        end
     end,
 })
 
