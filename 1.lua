@@ -15,11 +15,10 @@ local Window = Rayfield:CreateWindow({
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
-local player = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local player = game.Players.LocalPlayer
-local localplr = game.Players.LocalPlayer
+
+local player = Players.LocalPlayer
 
 -- 等待角色完全加載
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -205,7 +204,6 @@ MainTab:CreateToggle({
 })
 
 -- God Mode 功能
-local godModeToggle = false
 local godConnections = {}
 local godHeartbeat
 
@@ -269,200 +267,126 @@ MainTab:CreateToggle({
     end,
 })
 
-local VisionTab = Window:CreateTab("👁️ 視覺", 0)
+-- 防回彈功能
+local AntiRecoilConnections = {}
+local AntiRecoilBodyPos = nil
+local AntiRecoilHeartbeat = nil
 
-local highlightColor = Color3.fromRGB(255, 0, 0)
-local qualityColors = {
-    ["Common"] = Color3.fromRGB(255, 255, 255),
-    ["Rare"] = Color3.fromRGB(30, 144, 255),
-    ["Epic"] = Color3.fromRGB(148, 0, 211),
-    ["Legendary"] = Color3.fromRGB(255, 215, 0),
-    ["Mythic"] = Color3.fromRGB(255, 0, 0),
-    ["Secret"] = Color3.fromRGB(0, 0, 0),
-    ["Brainrot God"] = Color3.fromRGB(255, 105, 180),
-}
+local function clearAntiRecoil()
+    for _, conn in pairs(AntiRecoilConnections) do
+        if typeof(conn) == "RBXScriptConnection" then
+            conn:Disconnect()
+        end
+    end
+    AntiRecoilConnections = {}
 
-local Targets = {
-    ["Noobini Pizzanini"] = {quality = "Common"},
-    ["Lirilì Larilà"] = {quality = "Common"},
-    ["Tim Cheese"] = {quality = "Common"},
-    ["Fluriflura"] = {quality = "Common"},
-    ["Talpa Di Fero"] = {quality = "Common"},
-    ["Svinina Bombardino"] = {quality = "Common"},
-    ["Pipi Kiwi"] = {quality = "Common"},
-    ["Trippi Troppi"] = {quality = "Rare"},
-    ["Tung Tung Tung Sahur"] = {quality = "Rare"},
-    ["Gangster Footera"] = {quality = "Rare"},
-    ["Boneca Ambalabu"] = {quality = "Rare"},
-    ["Ta Ta Ta Ta Sahur"] = {quality = "Rare"},
-    ["Tric Trac Baraboom"] = {quality = "Rare"},
-    ["Bandito Bobritto"] = {quality = "Rare"},
-    ["Cappuccino Assassino"] = {quality = "Epic"},
-    ["Brr Brr Patapim"] = {quality = "Epic"},
-    ["Trulimero Trulicina"] = {quality = "Epic"},
-    ["Bambini Crostini"] = {quality = "Epic"},
-    ["Bananita Dolphinita"] = {quality = "Epic"},
-    ["Perochello Lemonchello"] = {quality = "Epic"},
-    ["Brri Brri Bicus Dicus Bombicus"] = {quality = "Epic"},
-    ["Burbaloni Loliloli"] = {quality = "Legendary"},
-    ["Chimpanzini Bananini"] = {quality = "Legendary"},
-    ["Ballerina Cappuccina"] = {quality = "Legendary"},
-    ["Chef Crabracadabra"] = {quality = "Legendary"},
-    ["Glorbo Fruttodrillo"] = {quality = "Legendary"},
-    ["Blueberrinni Octopusini"] = {quality = "Legendary"},
-    ["Lionel Cactuseli"] = {quality = "Legendary"},
-    ["Frigo Camelo"] = {quality = "Mythic"},
-    ["Orangutini Ananassini"] = {quality = "Mythic"},
-    ["Rhino Toasterino"] = {quality = "Mythic"},
-    ["Bombardiro Crocodilo"] = {quality = "Mythic"},
-    ["Bombombini Gusini"] = {quality = "Mythic"},
-    ["Cavallo Virtuoso"] = {quality = "Mythic"},
-    ["Cocofanto Elefanto"] = {quality = "Brainrot God"},
-    ["Gattatino Nyanino"] = {quality = "Brainrot God"},
-    ["Girafa Celestre"] = {quality = "Brainrot God"},
-    ["Tralalero Tralala"] = {quality = "Brainrot God"},
-    ["Matteo"] = {quality = "Brainrot God"},
-    ["Odin Din Din Dun"] = {quality = "Brainrot God"},
-    ["Trenostruzzo Turbo 3000"] = {quality = "Brainrot God"},
-    ["Unclito Samito"] = {quality = "Brainrot God"},
-    ["La Vacca Saturno Saturnita"] = {quality = "Secret"},
-    ["Los Tralaleritos"] = {quality = "Secret"},
-    ["Graipuss Medussi"] = {quality = "Secret"},
-    ["La Grande Combinazione"] = {quality = "Secret"},
-    ["Sammyni Spyderini"] = {quality = "Secret"},
-    ["Garama and Madundung"] = {quality = "Secret"},
-}
+    if AntiRecoilBodyPos then
+        AntiRecoilBodyPos:Destroy()
+        AntiRecoilBodyPos = nil
+    end
 
-getgenv().Rarity = getgenv().Rarity or {}
+    if AntiRecoilHeartbeat then
+        AntiRecoilHeartbeat:Disconnect()
+        AntiRecoilHeartbeat = nil
+    end
+end
 
-local ESPMarked = {}
+local function enableAntiRecoil()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart")
+    local humanoid = character:WaitForChild("Humanoid")
 
-local function clearAllESP()
-    for obj,_ in pairs(ESPMarked) do
-        if obj and obj.Parent then
-            local hl = obj:FindFirstChild("ESP_Highlight")
-            if hl then hl:Destroy() end
+    -- 用 BodyPosition 固定 HumanoidRootPart 位置防止被伺服器拉回
+    if not AntiRecoilBodyPos then
+        AntiRecoilBodyPos = Instance.new("BodyPosition")
+        AntiRecoilBodyPos.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+        AntiRecoilBodyPos.P = 1e4
+        AntiRecoilBodyPos.D = 1000
+        AntiRecoilBodyPos.Position = hrp.Position
+        AntiRecoilBodyPos.Parent = hrp
+    end
 
-            for _, part in ipairs(obj:GetChildren()) do
-                if part:IsA("BasePart") then
-                    local billboard = part:FindFirstChild("ESP_NameTag")
-                    if billboard then billboard:Destroy() end
-                end
+    -- 心跳保持 BodyPosition 在目標位置（角色持續移動時會更新）
+    AntiRecoilHeartbeat = RunService.Heartbeat:Connect(function()
+        if hrp and AntiRecoilBodyPos then
+            AntiRecoilBodyPos.Position = hrp.Position
+        end
+    end)
+
+    -- 監控 Humanoid 屬性強制設定，不被伺服器改回
+    table.insert(AntiRecoilConnections, humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if MainTab.Flags["⚡速度MAX"] and MainTab.Flags["⚡速度MAX"].Value then
+            humanoid.WalkSpeed = 48
+        else
+            humanoid.WalkSpeed = 16
+        end
+    end))
+
+    table.insert(AntiRecoilConnections, humanoid:GetPropertyChangedSignal("JumpHeight"):Connect(function()
+        if MainTab.Flags["🐇跳躍MAX"] and MainTab.Flags["🐇跳躍MAX"].Value then
+            humanoid.JumpHeight = 13
+        else
+            humanoid.JumpHeight = 7.2
+        end
+    end))
+
+    table.insert(AntiRecoilConnections, humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+        if MainTab.Flags["👑無敵模式"] and MainTab.Flags["👑無敵模式"].Value then
+            if humanoid.Health < humanoid.MaxHealth then
+                humanoid.Health = humanoid.MaxHealth
             end
         end
-        ESPMarked[obj] = nil
-    end
-end
+    end))
 
-local function shouldApplyESP(obj)
-    if not obj or not obj:IsA("Model") then return false end
-    if not Targets[obj.Name] then return false end
-    local rarity = Targets[obj.Name].quality
-    if not getgenv().Rarity[rarity] or not getgenv().Rarity[rarity].enabled then return false end
-    return true
-end
-
-local function applyESP(obj)
-    if ESPMarked[obj] then return end -- 避免重複標記
-    if not shouldApplyESP(obj) then return end
-
-    ESPMarked[obj] = true
-
-    -- 清除舊標籤
-    if obj:FindFirstChild("ESP_Highlight") then
-        obj.ESP_Highlight:Destroy()
-    end
-    for _, part in ipairs(obj:GetChildren()) do
-        if part:IsA("BasePart") then
-            local billboard = part:FindFirstChild("ESP_NameTag")
-            if billboard then billboard:Destroy() end
-        end
-    end
-
-    -- 新增 Highlight
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "ESP_Highlight"
-    highlight.FillColor = highlightColor
-    highlight.FillTransparency = 0
-    highlight.OutlineColor = Color3.new(1, 1, 1)
-    highlight.OutlineTransparency = 0
-    highlight.Adornee = obj
-    highlight.Parent = obj
-
-    -- 找HumanoidRootPart或最高的部件做Adornee
-    local adorneePart = obj:FindFirstChild("HumanoidRootPart")
-    if not adorneePart then
-        local highestY = -math.huge
-        for _, part in ipairs(obj:GetDescendants()) do
-            if part:IsA("BasePart") and part.Position.Y > highestY then
-                highestY = part.Position.Y
-                adorneePart = part
+    -- 低重力 BodyForce 防止被伺服器移除
+    local BodyForceName = "LowGravityForce"
+    local function ensureBodyForce()
+        if MainTab.Flags["🌑低重力"] and MainTab.Flags["🌑低重力"].Value then
+            if not hrp:FindFirstChild(BodyForceName) then
+                local bodyForce = Instance.new("BodyForce")
+                bodyForce.Name = BodyForceName
+                local gravityForce = Vector3.new(0, workspace.Gravity * hrp:GetMass(), 0)
+                local gravityScale = lowGravity / workspace.Gravity
+                bodyForce.Force = gravityForce * (1 - gravityScale)
+                bodyForce.Parent = hrp
+            end
+        else
+            if hrp:FindFirstChild(BodyForceName) then
+                hrp[BodyForceName]:Destroy()
             end
         end
     end
 
-    if adorneePart then
-        local billboard = Instance.new("BillboardGui")
-        billboard.Name = "ESP_NameTag"
-        billboard.Size = UDim2.new(0, 120, 0, 24)
-        billboard.StudsOffset = Vector3.new(0, 2.5, 0)
-        billboard.AlwaysOnTop = true
-        billboard.Adornee = adorneePart
-        billboard.Parent = adorneePart
+    table.insert(AntiRecoilConnections, hrp.ChildRemoved:Connect(function(child)
+        if child.Name == BodyForceName then
+            task.wait(0.1)
+            ensureBodyForce()
+        end
+    end))
 
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, 0, 1, 0)
-        label.BackgroundTransparency = 1
-        label.Text = obj.Name
-        label.TextColor3 = qualityColors[Targets[obj.Name].quality] or Color3.new(1, 1, 1)
-        label.TextStrokeColor3 = Color3.new(0, 0, 0)
-        label.TextStrokeTransparency = 0.5
-        label.TextScaled = true
-        label.Font = Enum.Font.GothamBold
-        label.Parent = billboard
-    end
+    -- 心跳定期檢查 BodyForce 狀態
+    table.insert(AntiRecoilConnections, RunService.Heartbeat:Connect(ensureBodyForce))
+
+    -- 監聽角色重生，重新啟動防回彈
+    table.insert(AntiRecoilConnections, player.CharacterAdded:Connect(function(newChar)
+        task.wait(1)
+        clearAntiRecoil()
+        enableAntiRecoil()
+    end))
 end
 
-local function refreshAllESP()
-    clearAllESP()
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if shouldApplyESP(obj) then
-            applyESP(obj)
+MainTab:CreateToggle({
+    Name = "🛡防回彈",
+    CurrentValue = false,
+    Callback = function(Value)
+        if Value then
+            enableAntiRecoil()
+        else
+            clearAntiRecoil()
         end
-    end
-end
-
-VisionTab:CreateDropdown({
-    Name = "ESP腐腦",
-    Options = {"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"},
-    CurrentOption = {},  
-    MultipleOptions = true,
-    Flag = "ESP腐腦",
-    Callback = function(Options)
-        for _, rarity in ipairs({"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"}) do
-            getgenv().Rarity[rarity] = {enabled = table.find(Options, rarity) ~= nil}
-        end
-        refreshAllESP()
-    end
+    end,
 })
 
-workspace.DescendantAdded:Connect(function(obj)
-    if obj:IsA("Model") then
-        task.delay(0.3, function()
-            if shouldApplyESP(obj) then
-                applyESP(obj)
-            end
-        end)
-    end
-end)
-
-task.spawn(function()
-    while true do
-        refreshAllESP()
-        task.wait(1)
-    end
-end)
-
- local ShopTab = Window:CreateTab("🛒 商店", 0) 
+local ShopTab = Window:CreateTab("🛒 商店", 0) 
 
 Rayfield:LoadConfiguration()
