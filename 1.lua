@@ -12,13 +12,18 @@ local Window = Rayfield:CreateWindow({
     }
 })
 
+-- 🔧 所有服務統一在這裡取用
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 
-local player = Players.LocalPlayer
+-- 🔒 本地玩家統一定義
+local localplr = Players.LocalPlayer
+
 
 -- 等待角色完全加載
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -266,6 +271,91 @@ MainTab:CreateToggle({
         end
     end,
 })
+
+local Players = game:GetService("Players")
+local tableofconnections = {}
+local antiragdoll = false
+
+MainTab:CreateToggle({
+	Name = "🛡️防摔倒/防 Ragdoll",
+	CurrentValue = false,
+	Callback = function(Value)
+		antiragdoll = Value
+		local character = Players.LocalPlayer.Character
+		if antiragdoll and character then
+			processCharacter(character)
+		end
+	end,
+})
+
+local function monitorHumanoidState(humanoid)
+	table.insert(tableofconnections, humanoid.StateChanged:Connect(function(_, newState)
+		if antiragdoll and (newState == Enum.HumanoidStateType.Ragdoll or newState == Enum.HumanoidStateType.Physics) then
+			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
+	end))
+end
+
+local function cleansePart(part)
+	table.insert(tableofconnections, part:GetPropertyChangedSignal("Anchored"):Connect(function()
+		if antiragdoll and part.Anchored then
+			part.Anchored = false
+		end
+	end))
+
+	table.insert(tableofconnections, part.ChildAdded:Connect(function(c)
+		if not antiragdoll then return end
+		if c:IsA("BallSocketConstraint") or c:IsA("HingeConstraint") or c.Name == "Attachment" then
+			c:Destroy()
+
+			local model = part:FindFirstAncestorOfClass("Model")
+			if model and model:FindFirstChild("Head") and model.Head:FindFirstChild("Neck") then
+				model.Head.Neck.Enabled = true
+			end
+			if model and model:FindFirstChild("HumanoidRootPart") then
+				model.HumanoidRootPart.CanCollide = true
+			end
+			for _, v in pairs(part:GetChildren()) do
+				if v:IsA("Motor6D") then
+					v.Enabled = true
+				end
+			end
+			for _ = 1, 10 do
+				task.wait()
+				part.Velocity = Vector3.zero
+			end
+		end
+	end))
+end
+
+function processCharacter(character)
+	for _, v in ipairs(character:GetChildren()) do
+		if v:IsA("Humanoid") then
+			monitorHumanoidState(v)
+		elseif v:IsA("BasePart") then
+			cleansePart(v)
+		end
+	end
+	table.insert(tableofconnections, character.ChildAdded:Connect(function(child)
+		if child:IsA("Humanoid") then
+			monitorHumanoidState(child)
+		elseif child:IsA("BasePart") then
+			cleansePart(child)
+		end
+	end))
+end
+
+-- 若角色已存在，立即處理
+if Players.LocalPlayer.Character then
+	processCharacter(Players.LocalPlayer.Character)
+end
+
+-- 監聽角色重新載入
+Players.LocalPlayer.CharacterAdded:Connect(function(char)
+	if antiragdoll then
+		processCharacter(char)
+	end
+end)
 
 -- 視覺 Tab (ESP)
 local VisionTab = Window:CreateTab("👁️ 視覺", 0)
