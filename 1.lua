@@ -16,7 +16,6 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
-
 local player = Players.LocalPlayer
 
 -- 等待角色完全加載
@@ -266,99 +265,52 @@ MainTab:CreateToggle({
     end,
 })
 
-local Players = game:GetService("Players")
-local tableofconnections, processedParts = {}, {}
-local antiragdoll = false
+local collisionConnection = nil
 
-local function disconnectAll()
-	for _, conn in ipairs(tableofconnections) do
-		if typeof(conn) == "RBXScriptConnection" then conn:Disconnect() end
-	end
-	table.clear(tableofconnections)
-	table.clear(processedParts)
-end
+local function setNoCollision(enabled)
+    if enabled then
+        local function disableCollision()
+            local char = player.Character
+            if char then
+                for _, part in ipairs(char:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end
 
-local function monitorHumanoidState(humanoid)
-	if processedParts[humanoid] then return end
-	processedParts[humanoid] = true
-	table.insert(tableofconnections, humanoid.StateChanged:Connect(function(_, newState)
-		if antiragdoll and (newState == Enum.HumanoidStateType.Ragdoll or newState == Enum.HumanoidStateType.Physics) then
-			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-		end
-	end))
-end
+        -- 初始設定一次
+        disableCollision()
 
-local function cleansePart(part)
-	if processedParts[part] then return end
-	processedParts[part] = true
-
-	table.insert(tableofconnections, part:GetPropertyChangedSignal("Anchored"):Connect(function()
-		if antiragdoll and part.Anchored then
-			part.Anchored = false
-		end
-	end))
-
-	table.insert(tableofconnections, part.ChildAdded:Connect(function(c)
-		if not antiragdoll then return end
-		if c:IsA("BallSocketConstraint") or c:IsA("HingeConstraint") or c.Name == "Attachment" then
-			c:Destroy()
-			local model = part:FindFirstAncestorOfClass("Model")
-			if model and model:FindFirstChild("Head") and model.Head:FindFirstChild("Neck") then
-				model.Head.Neck.Enabled = true
-			end
-			if model and model:FindFirstChild("HumanoidRootPart") then
-				model.HumanoidRootPart.CanCollide = true
-			end
-			for _, v in pairs(part:GetChildren()) do
-				if v:IsA("Motor6D") then
-					v.Enabled = true
-				end
-			end
-			for _ = 1, 10 do
-				task.wait()
-				part.Velocity = Vector3.zero
-			end
-		end
-	end))
-end
-
-local function processCharacter(character)
-	for _, v in ipairs(character:GetChildren()) do
-		if v:IsA("Humanoid") then
-			monitorHumanoidState(v)
-		elseif v:IsA("BasePart") then
-			cleansePart(v)
-		end
-	end
-	table.insert(tableofconnections, character.ChildAdded:Connect(function(child)
-		if not antiragdoll then return end
-		if child:IsA("Humanoid") then
-			monitorHumanoidState(child)
-		elseif child:IsA("BasePart") then
-			cleansePart(child)
-		end
-	end))
-end
-
-Players.LocalPlayer.CharacterAdded:Connect(function(char)
-	if antiragdoll then processCharacter(char) end
-end)
-
-if Players.LocalPlayer.Character then
-	processCharacter(Players.LocalPlayer.Character)
+        -- 當角色重生時，重新設定無碰撞
+        collisionConnection = player.CharacterAdded:Connect(function(char)
+            char:WaitForChild("HumanoidRootPart")
+            disableCollision()
+        end)
+    else
+        if collisionConnection then
+            collisionConnection:Disconnect()
+            collisionConnection = nil
+        end
+        -- 恢復碰撞
+        local char = player.Character
+        if char then
+            for _, part in ipairs(char:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                end
+            end
+        end
+    end
 end
 
 MainTab:CreateToggle({
-	Name = "🛡️防摔倒/防 Ragdoll",
-	CurrentValue = false,
-	Callback = function(Value)
-		antiragdoll = Value
-		if antiragdoll and Players.LocalPlayer.Character then
-			processCharacter(Players.LocalPlayer.Character)
-		else
-			disconnectAll()
-		end
-	end,
+    Name = "🚫 無碰撞",
+    CurrentValue = false,
+    Callback = function(value)
+        setNoCollision(value)
+    end,
 })
 
 -- 視覺 Tab (ESP)
