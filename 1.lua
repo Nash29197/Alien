@@ -273,22 +273,20 @@ MainTab:CreateToggle({
 })
 
 local Players = game:GetService("Players")
-local tableofconnections = {}
+local tableofconnections, processedParts = {}, {}
 local antiragdoll = false
 
-MainTab:CreateToggle({
-	Name = "🛡️防摔倒/防 Ragdoll",
-	CurrentValue = false,
-	Callback = function(Value)
-		antiragdoll = Value
-		local character = Players.LocalPlayer.Character
-		if antiragdoll and character then
-			processCharacter(character)
-		end
-	end,
-})
+local function disconnectAll()
+	for _, conn in ipairs(tableofconnections) do
+		if typeof(conn) == "RBXScriptConnection" then conn:Disconnect() end
+	end
+	table.clear(tableofconnections)
+	table.clear(processedParts)
+end
 
 local function monitorHumanoidState(humanoid)
+	if processedParts[humanoid] then return end
+	processedParts[humanoid] = true
 	table.insert(tableofconnections, humanoid.StateChanged:Connect(function(_, newState)
 		if antiragdoll and (newState == Enum.HumanoidStateType.Ragdoll or newState == Enum.HumanoidStateType.Physics) then
 			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
@@ -297,6 +295,9 @@ local function monitorHumanoidState(humanoid)
 end
 
 local function cleansePart(part)
+	if processedParts[part] then return end
+	processedParts[part] = true
+
 	table.insert(tableofconnections, part:GetPropertyChangedSignal("Anchored"):Connect(function()
 		if antiragdoll and part.Anchored then
 			part.Anchored = false
@@ -307,7 +308,6 @@ local function cleansePart(part)
 		if not antiragdoll then return end
 		if c:IsA("BallSocketConstraint") or c:IsA("HingeConstraint") or c.Name == "Attachment" then
 			c:Destroy()
-
 			local model = part:FindFirstAncestorOfClass("Model")
 			if model and model:FindFirstChild("Head") and model.Head:FindFirstChild("Neck") then
 				model.Head.Neck.Enabled = true
@@ -328,7 +328,7 @@ local function cleansePart(part)
 	end))
 end
 
-function processCharacter(character)
+local function processCharacter(character)
 	for _, v in ipairs(character:GetChildren()) do
 		if v:IsA("Humanoid") then
 			monitorHumanoidState(v)
@@ -337,6 +337,7 @@ function processCharacter(character)
 		end
 	end
 	table.insert(tableofconnections, character.ChildAdded:Connect(function(child)
+		if not antiragdoll then return end
 		if child:IsA("Humanoid") then
 			monitorHumanoidState(child)
 		elseif child:IsA("BasePart") then
@@ -345,17 +346,26 @@ function processCharacter(character)
 	end))
 end
 
--- 若角色已存在，立即處理
+Players.LocalPlayer.CharacterAdded:Connect(function(char)
+	if antiragdoll then processCharacter(char) end
+end)
+
 if Players.LocalPlayer.Character then
 	processCharacter(Players.LocalPlayer.Character)
 end
 
--- 監聽角色重新載入
-Players.LocalPlayer.CharacterAdded:Connect(function(char)
-	if antiragdoll then
-		processCharacter(char)
-	end
-end)
+MainTab:CreateToggle({
+	Name = "🛡️防摔倒/防 Ragdoll",
+	CurrentValue = false,
+	Callback = function(Value)
+		antiragdoll = Value
+		if antiragdoll and Players.LocalPlayer.Character then
+			processCharacter(Players.LocalPlayer.Character)
+		else
+			disconnectAll()
+		end
+	end,
+})
 
 -- 視覺 Tab (ESP)
 local VisionTab = Window:CreateTab("👁️ 視覺", 0)
