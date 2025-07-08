@@ -132,6 +132,54 @@ MainTab:CreateToggle({
     end,
 })
 
+local lowGravity = 120 -- 低重力數值
+local BodyForceName = "LowGravityForce"
+
+local function applyLowGravity()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart")
+
+    if hrp:FindFirstChild(BodyForceName) then
+        hrp[BodyForceName]:Destroy()
+    end
+
+    local bodyForce = Instance.new("BodyForce")
+    bodyForce.Name = BodyForceName
+
+    local gravityForce = Vector3.new(0, workspace.Gravity * hrp:GetMass(), 0)
+    local gravityScale = lowGravity / workspace.Gravity
+    bodyForce.Force = gravityForce * (1 - gravityScale)
+    bodyForce.Parent = hrp
+end
+
+local function resetGravity()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if hrp and hrp:FindFirstChild(BodyForceName) then
+        hrp[BodyForceName]:Destroy()
+    end
+end
+
+MainTab:CreateToggle({
+    Name = "🌑低重力",
+    CurrentValue = false,
+    Callback = function(Value)
+        if Value then
+            applyLowGravity()
+            -- 角色重生時持續套用低重力
+            if not player.CharacterAdded:Wait().ConnectApplied then
+                player.CharacterAdded:Connect(function()
+                    wait(1)
+                    applyLowGravity()
+                end)
+                player.CharacterAdded.ConnectApplied = true
+            end
+        else
+            resetGravity()
+        end
+    end,
+})
+
 -- 無限跳功能
 local jumpConnection = nil
 local function setInfiniteJump(enabled)
