@@ -472,4 +472,18 @@ DevelopersTab:CreateButton({
     end,
 })
 
+DevelopersTab:CreateButton({
+    Name = "DEX",
+    Callback = function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/DarkNetworks/Infinite-Yield/refs/heads/main/dex.lua'))()
+    end,
+})
+
+DevelopersTab:CreateButton({
+    Name = "SimpleSpy",
+    Callback = function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/DarkNetworks/Infinite-Yield/refs/heads/main/SimpleSpyV3/main.lua'))()
+    end,
+})
+
 Rayfield:LoadConfiguration()
