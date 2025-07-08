@@ -465,10 +465,11 @@ end)
 local ShopTab = Window:CreateTab("🛒 商店", 0)
 local DevelopersTab = Window:CreateTab("🖥️ 開發者工具", 0)
 
-local Button = Tab:CreateButton({
+DevelopersTab:CreateButton({
     Name = "Infinite Yield",
     Callback = function()
         loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
     end,
- })
+})
+
 Rayfield:LoadConfiguration()
