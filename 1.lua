@@ -594,9 +594,9 @@ local character = player.Character or player.CharacterAdded:Wait()
 
 -- ✅ 你的速度設定
 local purchaseDelays = {
-    ["Grapple Hook"] = 1.3,
-    ["Trap"] = 0.8,
-    ["Speed Coil"] = 0.8,
+    ["Grapple Hook"] = 1.5,
+    ["Trap"] = 1,
+    ["Speed Coil"] = 1,
 }
 local defaultDelay = 0.2
 
