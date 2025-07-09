@@ -569,36 +569,12 @@ end)
 local ShopTab = Window:CreateTab("🛒 商店", 0)
 
 local ShopItems = {
-    "Slap",
-    "Speed Coil",
-    "Trap",
-    "Iron Slap",
-    "Gravity Coil",
-    "Bee Launcher",
-    "Gold Slap",
-    "Coil Combo",
-    "Rage Table",
-    "Diamond Slap",
-    "Grapple Hook",
-    "Taser Gun",
-    "Emerald Slap",
-    "Invisibility Cloak",
-    "Boogie Bomb",
-    "Ruby Slap",
-    "Medusa's Head",
-    "Dark Matter Slap",
-    "Web Slinger",
-    "Flame Slap",
-    "Quantum Cloner",
-    "All Seeing Sentry",
-    "Nuclear Slap",
-    "Rainbowrath Sword",
-    "Galaxy Slap",
-    "Laser Cape",
-    "Glitched Slap",
-    "Body Swap Potion",
-    "Splatter Slap",
-    "Painball Gun",
+    "Slap", "Speed Coil", "Trap", "Iron Slap", "Gravity Coil", "Bee Launcher", "Gold Slap",
+    "Coil Combo", "Rage Table", "Diamond Slap", "Grapple Hook", "Taser Gun", "Emerald Slap",
+    "Invisibility Cloak", "Boogie Bomb", "Ruby Slap", "Medusa's Head", "Dark Matter Slap",
+    "Web Slinger", "Flame Slap", "Quantum Cloner", "All Seeing Sentry", "Nuclear Slap",
+    "Rainbowrath Sword", "Galaxy Slap", "Laser Cape", "Glitched Slap", "Body Swap Potion",
+    "Splatter Slap", "Painball Gun",
 }
 
 local selectedItems = {}
@@ -616,31 +592,25 @@ local player = game.Players.LocalPlayer
 local backpack = player:WaitForChild("Backpack")
 local character = player.Character or player.CharacterAdded:Wait()
 
--- 可調購買間隔，愈小愈快，但伺服器可能會阻擋太快
+-- ✅ 你的速度設定
 local purchaseDelays = {
-    ["Grapple Hook"] = 0.15,
-    ["Trap"] = 0.12,
-    ["Speed Coil"] = 0.12,
+    ["Grapple Hook"] = 1.3,
+    ["Trap"] = 0.8,
+    ["Speed Coil"] = 0.8,
 }
-local defaultDelay = 0.1
+local defaultDelay = 0.2
 
--- 背包 + 身上 是否已有此物品
 local function countItemInInventory(itemName)
     local count = 0
     for _, item in ipairs(backpack:GetChildren()) do
-        if item.Name == itemName then
-            count += 1
-        end
+        if item.Name == itemName then count += 1 end
     end
     for _, item in ipairs(character:GetChildren()) do
-        if item.Name == itemName then
-            count += 1
-        end
+        if item.Name == itemName then count += 1 end
     end
     return count
 end
 
--- 安全呼叫購買
 local function safeInvoke(itemName)
     local args = {itemName}
     local success, err = pcall(function()
@@ -651,7 +621,6 @@ local function safeInvoke(itemName)
     end
 end
 
--- 執行購買，含延遲
 local function buyItem(item, count)
     count = count or 1
     for i = 1, count do
@@ -660,7 +629,6 @@ local function buyItem(item, count)
     end
 end
 
--- 主購買邏輯：依順序檢查是否缺少 → 缺就買
 local function buySelectedItemsSequential()
     if isBuying then
         buyRequestPending = true
@@ -669,21 +637,16 @@ local function buySelectedItemsSequential()
     isBuying = true
 
     task.spawn(function()
-        -- 確保按 ShopItems 順序購買
         for _, item in ipairs(ShopItems) do
             if table.find(selectedItems, item) then
                 local currentCount = countItemInInventory(item)
                 if item == "Trap" then
                     local need = math.min(trapCount, 5)
                     local toBuy = math.max(0, need - currentCount)
-                    if toBuy > 0 then
-                        buyItem(item, toBuy)
-                    end
+                    if toBuy > 0 then buyItem(item, toBuy) end
                 elseif item == "Grapple Hook" then
                     local toBuy = math.max(0, 5 - currentCount)
-                    if toBuy > 0 then
-                        buyItem(item, toBuy)
-                    end
+                    if toBuy > 0 then buyItem(item, toBuy) end
                 else
                     if currentCount < 1 then
                         buyItem(item, 1)
@@ -700,7 +663,7 @@ local function buySelectedItemsSequential()
     end)
 end
 
--- dropdown 帶入 "All" 選項
+-- 下拉選單帶入 All 選項
 local DropdownOptions = table.clone(ShopItems)
 table.insert(DropdownOptions, 1, "All")
 
@@ -713,15 +676,12 @@ ShopTab:CreateDropdown({
     Callback = function(Options)
         if table.find(Options, "All") then
             selectedItems = table.clone(ShopItems)
-
-            -- 同步 UI（視你的 UI 函數庫是否支援 flags 寫入）
             if library and library.flags then
                 library.flags["DropdownAutoBuy"] = selectedItems
             end
         else
             selectedItems = Options
         end
-
         if autoBuyEnabled then
             buySelectedItemsSequential()
         end
