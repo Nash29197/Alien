@@ -611,15 +611,15 @@ local buyRemote = RepStorage:WaitForChild("Packages")
                       :WaitForChild("Net")
                       :WaitForChild("RF/CoinsShopService/RequestBuy")
 
+local player = game.Players.LocalPlayer
+local backpack = player:WaitForChild("Backpack")
+local character = player.Character or player.CharacterAdded:Wait()
+
 local purchaseDelays = {
     ["Grapple Hook"] = 1.0,
     ["Trap"] = 0.5,
     ["Speed Coil"] = 0.5,
 }
-
-local player = game.Players.LocalPlayer
-local backpack = player:WaitForChild("Backpack")
-local character = player.Character or player.CharacterAdded:Wait()
 
 local function countItemInInventory(itemName)
     local count = 0
@@ -660,27 +660,29 @@ local function buySelectedItemsSequential()
     isBuying = true
 
     task.spawn(function()
-        for _, item in ipairs(ShopItems) do
-            if table.find(selectedItems, item) then
-                local currentCount = countItemInInventory(item)
-                if item == "Trap" then
-                    local toBuy = math.max(0, trapCount - currentCount)
-                    if toBuy > 0 then
-                        buyItem(item, toBuy)
-                    end
-                elseif item == "Grapple Hook" then
-                    local maxGrapple = 5
-                    local toBuy = math.max(0, maxGrapple - currentCount)
-                    if toBuy > 0 then
-                        buyItem(item, toBuy)
-                    end
-                else
-                    if currentCount < 1 then
-                        buyItem(item, 1)
-                    end
+        -- 依玩家選擇順序過濾ShopItems
+        local toBuyList = {}
+        for _, shopItem in ipairs(ShopItems) do
+            if table.find(selectedItems, shopItem) then
+                table.insert(toBuyList, shopItem)
+            end
+        end
+
+        for _, item in ipairs(toBuyList) do
+            local currentCount = countItemInInventory(item)
+            if item == "Trap" then
+                local needed = math.min(trapCount, 5) -- Trap最多5個
+                local toBuy = math.max(0, needed - currentCount)
+                if toBuy > 0 then
+                    buyItem(item, toBuy)
+                end
+            else
+                if currentCount < 1 then
+                    buyItem(item, 1)
                 end
             end
         end
+
         isBuying = false
     end)
 end
