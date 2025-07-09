@@ -668,7 +668,7 @@ local DropdownOptions = table.clone(ShopItems)
 table.insert(DropdownOptions, 1, "All")
 
 ShopTab:CreateDropdown({
-    Name = "🛒 選擇要購買的物品",
+    Name = "道具列表(可複選)",
     Options = DropdownOptions,
     CurrentOption = {},
     MultipleOptions = true,
@@ -689,7 +689,7 @@ ShopTab:CreateDropdown({
 })
 
 ShopTab:CreateSlider({
-    Name = "購買 Trap 數量",
+    Name = "夾子購買數量(1~5)",
     Range = {1, 5},
     Increment = 1,
     Suffix = "個",
@@ -704,7 +704,7 @@ ShopTab:CreateSlider({
 })
 
 ShopTab:CreateToggle({
-    Name = "✅ 自動購買所選物品",
+    Name = "自動購買",
     CurrentValue = false,
     Flag = "ToggleAutoBuy",
     Callback = function(Value)
