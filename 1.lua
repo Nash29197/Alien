@@ -567,6 +567,60 @@ end)
 
 -- 商店 Tab
 local ShopTab = Window:CreateTab("🛒 商店", 0)
+
+local ShopItems = {
+    "Trap",
+    "Slap",
+    "Iron Slap",
+    "Gravity Coil",
+    "Bee Launcher",
+    "Gold Slap",
+    "Coil Combo",
+    "Rage Table",
+    "Diamond Slap",
+    "Grapple Hook",
+    "Taser Gun",
+    "Emerald Slap",
+    "Invisibility Cloak",
+    "Boogie Bomb",
+    "Ruby Slap",
+    "Medusa's Head",
+    "Dark Matter Slap",
+    "Web Slinger",
+    "Flame Slap",
+    "Quantum Cloner",
+    "All Seeing Sentry",
+    "Nuclear Slap",
+    "Rainbowrath Sword",
+    "Galaxy Slap",
+    "Laser Cape",
+    "Glitched Slap",
+    "Body Swap Potion",
+    "Splatter Slap",
+    "Painball Gun"
+}
+
+ShopTab:CreateDropdown({
+    Name = "🛒 選擇要購買的物品",
+    Options = ShopItems,
+    CurrentOption = {},
+    MultipleOptions = true,
+    Flag = "AutoShopBuy",
+    Callback = function(Options)
+        task.spawn(function()
+            for _, item in ipairs(Options) do
+                local args = { item }
+                game:GetService("ReplicatedStorage")
+                    :WaitForChild("Packages")
+                    :WaitForChild("Net")
+                    :WaitForChild("RF/CoinsShopService/RequestBuy")
+                    :InvokeServer(unpack(args))
+                task.wait(0.1)
+            end
+        end)
+    end,
+})
+
 local DevelopersTab = Window:CreateTab("🖥️ 開發者工具", 0)
 
 DevelopersTab:CreateButton({
