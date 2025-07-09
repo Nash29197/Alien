@@ -592,15 +592,16 @@ local player = game.Players.LocalPlayer
 local backpack = player:WaitForChild("Backpack")
 local character = player.Character or player.CharacterAdded:Wait()
 
--- ✅ 你的速度設定
 local purchaseDelays = {
     ["Grapple Hook"] = 1.5,
     ["Trap"] = 1,
     ["Speed Coil"] = 1,
 }
-local defaultDelay = 0.2
+local defaultDelay = 0.4 -- 加大延遲
 
 local function countItemInInventory(itemName)
+    -- 等待短暫時間確保背包更新
+    task.wait(0.1)
     local count = 0
     for _, item in ipairs(backpack:GetChildren()) do
         if item.Name == itemName then count += 1 end
@@ -619,14 +620,45 @@ local function safeInvoke(itemName)
     if not success then
         warn("❌ 購買失敗:", itemName, err)
     end
+    return success
 end
 
 local function buyItem(item, count)
     count = count or 1
+    local bought = 0
     for i = 1, count do
-        safeInvoke(item)
+        local success = safeInvoke(item)
+        if success then
+            bought += 1
+        else
+            -- 失敗可稍後重試，先跳出避免刷頻
+            break
+        end
         task.wait(purchaseDelays[item] or defaultDelay)
     end
+    return bought
+end
+
+local function allItemsBought()
+    for _, item in ipairs(ShopItems) do
+        if table.find(selectedItems, item) then
+            local currentCount = countItemInInventory(item)
+            if item == "Trap" then
+                if currentCount < math.min(trapCount, 5) then
+                    return false
+                end
+            elseif item == "Grapple Hook" then
+                if currentCount < 5 then
+                    return false
+                end
+            else
+                if currentCount < 1 then
+                    return false
+                end
+            end
+        end
+    end
+    return true
 end
 
 local function buySelectedItemsSequential()
@@ -637,21 +669,29 @@ local function buySelectedItemsSequential()
     isBuying = true
 
     task.spawn(function()
-        for _, item in ipairs(ShopItems) do
-            if table.find(selectedItems, item) then
-                local currentCount = countItemInInventory(item)
-                if item == "Trap" then
-                    local need = math.min(trapCount, 5)
-                    local toBuy = math.max(0, need - currentCount)
-                    if toBuy > 0 then buyItem(item, toBuy) end
-                elseif item == "Grapple Hook" then
-                    local toBuy = math.max(0, 5 - currentCount)
-                    if toBuy > 0 then buyItem(item, toBuy) end
-                else
-                    if currentCount < 1 then
-                        buyItem(item, 1)
+        while true do
+            for _, item in ipairs(ShopItems) do
+                if table.find(selectedItems, item) then
+                    local currentCount = countItemInInventory(item)
+                    if item == "Trap" then
+                        local need = math.min(trapCount, 5)
+                        local toBuy = math.max(0, need - currentCount)
+                        if toBuy > 0 then buyItem(item, toBuy) end
+                    elseif item == "Grapple Hook" then
+                        local toBuy = math.max(0, 5 - currentCount)
+                        if toBuy > 0 then buyItem(item, toBuy) end
+                    else
+                        if currentCount < 1 then
+                            buyItem(item, 1)
+                        end
                     end
                 end
+            end
+            -- 檢查是否全部買齊
+            if allItemsBought() then
+                break
+            else
+                task.wait(0.5) -- 未買齊，間隔後重試
             end
         end
 
@@ -663,22 +703,20 @@ local function buySelectedItemsSequential()
     end)
 end
 
--- 下拉選單帶入 All 選項
-local DropdownOptions = table.clone(ShopItems)
-table.insert(DropdownOptions, 1, "All")
-
+-- UI 設定範例（請根據你UI調整）
 ShopTab:CreateDropdown({
     Name = "道具列表(可複選)",
-    Options = DropdownOptions,
+    Options = (function()
+        local opts = table.clone(ShopItems)
+        table.insert(opts, 1, "All")
+        return opts
+    end)(),
     CurrentOption = {},
     MultipleOptions = true,
     Flag = "DropdownAutoBuy",
     Callback = function(Options)
         if table.find(Options, "All") then
             selectedItems = table.clone(ShopItems)
-            if library and library.flags then
-                library.flags["DropdownAutoBuy"] = selectedItems
-            end
         else
             selectedItems = Options
         end
