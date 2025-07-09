@@ -593,9 +593,9 @@ local backpack = player:WaitForChild("Backpack")
 local character = player.Character or player.CharacterAdded:Wait()
 
 local purchaseDelays = {
-    ["Grapple Hook"] = 1.5,
-    ["Trap"] = 1,
-    ["Speed Coil"] = 1,
+    ["Grapple Hook"] = 0.2,
+    ["Trap"] = 0.2,
+    ["Speed Coil"] = 0.2,
 }
 local defaultDelay = 0.4 -- 加大延遲
 
