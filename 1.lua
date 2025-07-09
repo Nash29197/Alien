@@ -603,40 +603,57 @@ local ShopItems = {
 local selectedItems = {}
 local trapCount = 1
 local autoBuyEnabled = false
-local debounce = false
 
 local RepStorage = game:GetService("ReplicatedStorage")
 local buyRemote = RepStorage:WaitForChild("Packages")
                       :WaitForChild("Net")
                       :WaitForChild("RF/CoinsShopService/RequestBuy")
 
--- 非同步購買函數，分批買，避免 InvokeServer 太頻繁
-local function buyItem(item, count)
+local purchaseQueue = {}
+local isProcessingQueue = false
+
+local function enqueuePurchase(item, count)
     count = count or 1
     for i = 1, count do
-        buyRemote:InvokeServer(item)
-        task.wait(0.15)  -- 每次購買間隔 0.15 秒，避免頻繁呼叫
+        table.insert(purchaseQueue, item)
     end
 end
 
--- 主購買函數，帶防抖
-function buySelectedItems()
-    if debounce then return end
-    debounce = true
+local function processQueue()
+    if isProcessingQueue then return end
+    isProcessingQueue = true
 
-    spawn(function()
-        for _, item in ipairs(selectedItems) do
-            if item == "Trap" then
-                buyItem(item, trapCount)
-            else
-                buyItem(item)
+    task.spawn(function()
+        while #purchaseQueue > 0 do
+            local item = table.remove(purchaseQueue, 1)
+            local success, err = pcall(function()
+                buyRemote:InvokeServer(item)
+            end)
+            if not success then
+                warn("購買失敗:", item, err)
             end
+            task.wait(0.3) -- 延遲 0.3 秒再買下一個，降低頻率
         end
-        debounce = false
+        isProcessingQueue = false
     end)
 end
 
--- 選擇要購買的物品（多選）
+function buySelectedItems()
+    if not autoBuyEnabled then return end
+    -- 清空隊列
+    purchaseQueue = {}
+
+    for _, item in ipairs(selectedItems) do
+        if item == "Trap" then
+            enqueuePurchase(item, trapCount)
+        else
+            enqueuePurchase(item, 1)
+        end
+    end
+
+    processQueue()
+end
+
 ShopTab:CreateDropdown({
     Name = "🛒 選擇要購買的物品",
     Options = ShopItems,
@@ -645,13 +662,10 @@ ShopTab:CreateDropdown({
     Flag = "DropdownAutoBuy",
     Callback = function(Options)
         selectedItems = Options
-        if autoBuyEnabled then
-            buySelectedItems()
-        end
+        buySelectedItems()
     end,
 })
 
--- Trap 數量滑桿（只影響 Trap 購買數量）
 ShopTab:CreateSlider({
     Name = "購買 Trap 數量",
     Range = {1, 5},
@@ -667,7 +681,6 @@ ShopTab:CreateSlider({
     end,
 })
 
--- 自動購買開關
 ShopTab:CreateToggle({
     Name = "✅ 自動購買所選物品",
     CurrentValue = false,
@@ -676,6 +689,8 @@ ShopTab:CreateToggle({
         autoBuyEnabled = Value
         if autoBuyEnabled then
             buySelectedItems()
+        else
+            purchaseQueue = {} -- 停止時清空隊列避免殘留
         end
     end,
 })
