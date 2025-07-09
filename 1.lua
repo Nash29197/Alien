@@ -569,8 +569,9 @@ end)
 local ShopTab = Window:CreateTab("🛒 商店", 0)
 
 local ShopItems = {
-    "Trap",
     "Slap",
+    "Speed Coil",
+    "Trap",
     "Iron Slap",
     "Gravity Coil",
     "Bee Launcher",
@@ -597,61 +598,60 @@ local ShopItems = {
     "Glitched Slap",
     "Body Swap Potion",
     "Splatter Slap",
-    "Painball Gun"
+    "Painball Gun",
 }
 
 local selectedItems = {}
 local trapCount = 1
 local autoBuyEnabled = false
+local isBuying = false
 
 local RepStorage = game:GetService("ReplicatedStorage")
 local buyRemote = RepStorage:WaitForChild("Packages")
                       :WaitForChild("Net")
                       :WaitForChild("RF/CoinsShopService/RequestBuy")
 
-local purchaseQueue = {}
-local isProcessingQueue = false
+local purchaseDelays = {
+    ["Grapple Hook"] = 1.0,
+    ["Trap"] = 0.5,
+    ["Speed Coil"] = 0.5,
+}
 
-local function enqueuePurchase(item, count)
+local function safeInvoke(itemName)
+    local args = {itemName}
+    local success, err = pcall(function()
+        buyRemote:InvokeServer(unpack(args))
+    end)
+    if not success then
+        warn("購買失敗:", itemName, err)
+    end
+end
+
+local function buyItem(item, count)
     count = count or 1
     for i = 1, count do
-        table.insert(purchaseQueue, item)
+        safeInvoke(item)
+        local delay = purchaseDelays[item] or 0.3
+        task.wait(delay)
     end
 end
 
-local function processQueue()
-    if isProcessingQueue then return end
-    isProcessingQueue = true
+local function buySelectedItemsSequential()
+    if isBuying or not autoBuyEnabled then return end
+    isBuying = true
 
     task.spawn(function()
-        while #purchaseQueue > 0 do
-            local item = table.remove(purchaseQueue, 1)
-            local success, err = pcall(function()
-                buyRemote:InvokeServer(item)
-            end)
-            if not success then
-                warn("購買失敗:", item, err)
+        for _, item in ipairs(ShopItems) do
+            if table.find(selectedItems, item) then
+                if item == "Trap" then
+                    buyItem(item, trapCount)
+                else
+                    buyItem(item)
+                end
             end
-            task.wait(0.3) -- 延遲 0.3 秒再買下一個，降低頻率
         end
-        isProcessingQueue = false
+        isBuying = false
     end)
-end
-
-function buySelectedItems()
-    if not autoBuyEnabled then return end
-    -- 清空隊列
-    purchaseQueue = {}
-
-    for _, item in ipairs(selectedItems) do
-        if item == "Trap" then
-            enqueuePurchase(item, trapCount)
-        else
-            enqueuePurchase(item, 1)
-        end
-    end
-
-    processQueue()
 end
 
 ShopTab:CreateDropdown({
@@ -662,7 +662,7 @@ ShopTab:CreateDropdown({
     Flag = "DropdownAutoBuy",
     Callback = function(Options)
         selectedItems = Options
-        buySelectedItems()
+        buySelectedItemsSequential()
     end,
 })
 
@@ -676,7 +676,7 @@ ShopTab:CreateSlider({
     Callback = function(Value)
         trapCount = Value
         if autoBuyEnabled and table.find(selectedItems, "Trap") then
-            buySelectedItems()
+            buySelectedItemsSequential()
         end
     end,
 })
@@ -688,9 +688,7 @@ ShopTab:CreateToggle({
     Callback = function(Value)
         autoBuyEnabled = Value
         if autoBuyEnabled then
-            buySelectedItems()
-        else
-            purchaseQueue = {} -- 停止時清空隊列避免殘留
+            buySelectedItemsSequential()
         end
     end,
 })
