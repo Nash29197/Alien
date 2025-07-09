@@ -604,59 +604,63 @@ local ShopItems = {
 local selectedItems = {}
 local trapCount = 1
 local autoBuyEnabled = false
-
-local isBuying = false     -- 標記是否正在購買
-local buyRequestPending = false  -- 標記是否有新的購買請求等待
+local isBuying = false
+local buyRequestPending = false
 
 local RepStorage = game:GetService("ReplicatedStorage")
 local buyRemote = RepStorage:WaitForChild("Packages")
-                      :WaitForChild("Net")
-                      :WaitForChild("RF/CoinsShopService/RequestBuy")
+    :WaitForChild("Net")
+    :WaitForChild("RF/CoinsShopService/RequestBuy")
 
 local player = game.Players.LocalPlayer
 local backpack = player:WaitForChild("Backpack")
 local character = player.Character or player.CharacterAdded:Wait()
 
+-- 可調購買間隔，愈小愈快，但伺服器可能會阻擋太快
 local purchaseDelays = {
-    ["Grapple Hook"] = 1.5,
-    ["Trap"] = 1.0,
-    ["Speed Coil"] = 1.0,
+    ["Grapple Hook"] = 0.15,
+    ["Trap"] = 0.12,
+    ["Speed Coil"] = 0.12,
 }
+local defaultDelay = 0.1
 
+-- 背包 + 身上 是否已有此物品
 local function countItemInInventory(itemName)
     local count = 0
     for _, item in ipairs(backpack:GetChildren()) do
         if item.Name == itemName then
-            count = count + 1
+            count += 1
         end
     end
     for _, item in ipairs(character:GetChildren()) do
         if item.Name == itemName then
-            count = count + 1
+            count += 1
         end
     end
     return count
 end
 
+-- 安全呼叫購買
 local function safeInvoke(itemName)
     local args = {itemName}
     local success, err = pcall(function()
         buyRemote:InvokeServer(unpack(args))
     end)
     if not success then
-        warn("購買失敗:", itemName, err)
+        warn("❌ 購買失敗:", itemName, err)
     end
 end
 
+-- 執行購買，含延遲
 local function buyItem(item, count)
     count = count or 1
     for i = 1, count do
         safeInvoke(item)
-        local delay = purchaseDelays[item] or 0.5
-        task.wait(delay)
+        task.wait(purchaseDelays[item] or defaultDelay)
     end
 end
 
+-- 主購買邏輯：依順序檢查是否缺少 → 缺就買
 local function buySelectedItemsSequential()
     if isBuying then
         buyRequestPending = true
@@ -665,37 +669,30 @@ local function buySelectedItemsSequential()
     isBuying = true
 
     task.spawn(function()
-        -- 依照 ShopItems 排序，挑出使用者選擇的物品購買
-        local toBuyList = {}
-        for _, shopItem in ipairs(ShopItems) do
-            if table.find(selectedItems, shopItem) then
-                table.insert(toBuyList, shopItem)
-            end
-        end
-
-        for _, item in ipairs(toBuyList) do
-            local currentCount = countItemInInventory(item)
-            if item == "Trap" then
-                local needed = math.min(trapCount, 5)
-                local toBuy = math.max(0, needed - currentCount)
-                if toBuy > 0 then
-                    buyItem(item, toBuy)
-                end
-            elseif item == "Grapple Hook" then
-                local maxGrapple = 5
-                local toBuy = math.max(0, maxGrapple - currentCount)
-                if toBuy > 0 then
-                    buyItem(item, toBuy)
-                end
-            else
-                if currentCount < 1 then
-                    buyItem(item, 1)
+        -- 確保按 ShopItems 順序購買
+        for _, item in ipairs(ShopItems) do
+            if table.find(selectedItems, item) then
+                local currentCount = countItemInInventory(item)
+                if item == "Trap" then
+                    local need = math.min(trapCount, 5)
+                    local toBuy = math.max(0, need - currentCount)
+                    if toBuy > 0 then
+                        buyItem(item, toBuy)
+                    end
+                elseif item == "Grapple Hook" then
+                    local toBuy = math.max(0, 5 - currentCount)
+                    if toBuy > 0 then
+                        buyItem(item, toBuy)
+                    end
+                else
+                    if currentCount < 1 then
+                        buyItem(item, 1)
+                    end
                 end
             end
         end
 
         isBuying = false
-
         if buyRequestPending then
             buyRequestPending = false
             buySelectedItemsSequential()
@@ -703,14 +700,28 @@ local function buySelectedItemsSequential()
     end)
 end
 
+-- dropdown 帶入 "All" 選項
+local DropdownOptions = table.clone(ShopItems)
+table.insert(DropdownOptions, 1, "All")
+
 ShopTab:CreateDropdown({
     Name = "🛒 選擇要購買的物品",
-    Options = ShopItems,
+    Options = DropdownOptions,
     CurrentOption = {},
     MultipleOptions = true,
     Flag = "DropdownAutoBuy",
     Callback = function(Options)
-        selectedItems = Options
+        if table.find(Options, "All") then
+            selectedItems = table.clone(ShopItems)
+
+            -- 同步 UI（視你的 UI 函數庫是否支援 flags 寫入）
+            if library and library.flags then
+                library.flags["DropdownAutoBuy"] = selectedItems
+            end
+        else
+            selectedItems = Options
+        end
+
         if autoBuyEnabled then
             buySelectedItemsSequential()
         end
