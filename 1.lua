@@ -600,26 +600,71 @@ local ShopItems = {
     "Painball Gun"
 }
 
+local selectedItems = {}
+local trapCount = 1
+local autoBuyEnabled = false
+
+-- 選擇要購買的物品（多選）
 ShopTab:CreateDropdown({
     Name = "🛒 選擇要購買的物品",
     Options = ShopItems,
     CurrentOption = {},
     MultipleOptions = true,
-    Flag = "AutoShopBuy",
+    Flag = "DropdownAutoBuy",
     Callback = function(Options)
-        task.spawn(function()
-            for _, item in ipairs(Options) do
-                local args = { item }
-                game:GetService("ReplicatedStorage")
-                    :WaitForChild("Packages")
-                    :WaitForChild("Net")
-                    :WaitForChild("RF/CoinsShopService/RequestBuy")
-                    :InvokeServer(unpack(args))
-                task.wait(0.1)
-            end
-        end)
+        selectedItems = Options
+        if autoBuyEnabled then
+            buySelectedItems()
+        end
     end,
 })
+
+-- Trap 數量滑桿（只影響 Trap 購買數量）
+ShopTab:CreateSlider({
+    Name = "購買 Trap 數量",
+    Range = {1, 5},
+    Increment = 1,
+    Suffix = "個",
+    CurrentValue = 1,
+    Flag = "TrapSlider",
+    Callback = function(Value)
+        trapCount = Value
+        if autoBuyEnabled and table.find(selectedItems, "Trap") then
+            buySelectedItems()
+        end
+    end,
+})
+
+-- 自動購買開關
+ShopTab:CreateToggle({
+    Name = "✅ 自動購買所選物品",
+    CurrentValue = false,
+    Flag = "ToggleAutoBuy",
+    Callback = function(Value)
+        autoBuyEnabled = Value
+        if autoBuyEnabled then
+            buySelectedItems()
+        end
+    end,
+})
+
+-- 購買函數（根據選擇和 Trap 數量購買）
+function buySelectedItems()
+    local buyRemote = game:GetService("ReplicatedStorage")
+        :WaitForChild("Packages")
+        :WaitForChild("Net")
+        :WaitForChild("RF/CoinsShopService/RequestBuy")
+
+    for _, item in ipairs(selectedItems) do
+        if item == "Trap" then
+            for i = 1, trapCount do
+                buyRemote:InvokeServer(item)
+            end
+        else
+            buyRemote:InvokeServer(item)
+        end
+    end
+end
 
 local DevelopersTab = Window:CreateTab("🖥️ 開發者工具", 0)
 
