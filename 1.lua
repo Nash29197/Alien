@@ -617,6 +617,25 @@ local purchaseDelays = {
     ["Speed Coil"] = 0.5,
 }
 
+local player = game.Players.LocalPlayer
+local backpack = player:WaitForChild("Backpack")
+local character = player.Character or player.CharacterAdded:Wait()
+
+local function countItemInInventory(itemName)
+    local count = 0
+    for _, item in ipairs(backpack:GetChildren()) do
+        if item.Name == itemName then
+            count = count + 1
+        end
+    end
+    for _, item in ipairs(character:GetChildren()) do
+        if item.Name == itemName then
+            count = count + 1
+        end
+    end
+    return count
+end
+
 local function safeInvoke(itemName)
     local args = {itemName}
     local success, err = pcall(function()
@@ -643,10 +662,22 @@ local function buySelectedItemsSequential()
     task.spawn(function()
         for _, item in ipairs(ShopItems) do
             if table.find(selectedItems, item) then
+                local currentCount = countItemInInventory(item)
                 if item == "Trap" then
-                    buyItem(item, trapCount)
+                    local toBuy = math.max(0, trapCount - currentCount)
+                    if toBuy > 0 then
+                        buyItem(item, toBuy)
+                    end
+                elseif item == "Grapple Hook" then
+                    local maxGrapple = 5
+                    local toBuy = math.max(0, maxGrapple - currentCount)
+                    if toBuy > 0 then
+                        buyItem(item, toBuy)
+                    end
                 else
-                    buyItem(item)
+                    if currentCount < 1 then
+                        buyItem(item, 1)
+                    end
                 end
             end
         end
