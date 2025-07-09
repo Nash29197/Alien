@@ -603,6 +603,38 @@ local ShopItems = {
 local selectedItems = {}
 local trapCount = 1
 local autoBuyEnabled = false
+local debounce = false
+
+local RepStorage = game:GetService("ReplicatedStorage")
+local buyRemote = RepStorage:WaitForChild("Packages")
+                      :WaitForChild("Net")
+                      :WaitForChild("RF/CoinsShopService/RequestBuy")
+
+-- 非同步購買函數，分批買，避免 InvokeServer 太頻繁
+local function buyItem(item, count)
+    count = count or 1
+    for i = 1, count do
+        buyRemote:InvokeServer(item)
+        task.wait(0.15)  -- 每次購買間隔 0.15 秒，避免頻繁呼叫
+    end
+end
+
+-- 主購買函數，帶防抖
+function buySelectedItems()
+    if debounce then return end
+    debounce = true
+
+    spawn(function()
+        for _, item in ipairs(selectedItems) do
+            if item == "Trap" then
+                buyItem(item, trapCount)
+            else
+                buyItem(item)
+            end
+        end
+        debounce = false
+    end)
+end
 
 -- 選擇要購買的物品（多選）
 ShopTab:CreateDropdown({
@@ -647,24 +679,6 @@ ShopTab:CreateToggle({
         end
     end,
 })
-
--- 購買函數（根據選擇和 Trap 數量購買）
-function buySelectedItems()
-    local buyRemote = game:GetService("ReplicatedStorage")
-        :WaitForChild("Packages")
-        :WaitForChild("Net")
-        :WaitForChild("RF/CoinsShopService/RequestBuy")
-
-    for _, item in ipairs(selectedItems) do
-        if item == "Trap" then
-            for i = 1, trapCount do
-                buyRemote:InvokeServer(item)
-            end
-        else
-            buyRemote:InvokeServer(item)
-        end
-    end
-end
 
 local DevelopersTab = Window:CreateTab("🖥️ 開發者工具", 0)
 
