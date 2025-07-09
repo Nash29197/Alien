@@ -604,7 +604,9 @@ local ShopItems = {
 local selectedItems = {}
 local trapCount = 1
 local autoBuyEnabled = false
-local isBuying = false
+
+local isBuying = false     -- 標記是否正在購買
+local buyRequestPending = false  -- 標記是否有新的購買請求等待
 
 local RepStorage = game:GetService("ReplicatedStorage")
 local buyRemote = RepStorage:WaitForChild("Packages")
@@ -616,9 +618,9 @@ local backpack = player:WaitForChild("Backpack")
 local character = player.Character or player.CharacterAdded:Wait()
 
 local purchaseDelays = {
-    ["Grapple Hook"] = 1.0,
-    ["Trap"] = 0.5,
-    ["Speed Coil"] = 0.5,
+    ["Grapple Hook"] = 1.5,
+    ["Trap"] = 1.0,
+    ["Speed Coil"] = 1.0,
 }
 
 local function countItemInInventory(itemName)
@@ -650,17 +652,20 @@ local function buyItem(item, count)
     count = count or 1
     for i = 1, count do
         safeInvoke(item)
-        local delay = purchaseDelays[item] or 0.3
+        local delay = purchaseDelays[item] or 0.5
         task.wait(delay)
     end
 end
 
 local function buySelectedItemsSequential()
-    if isBuying or not autoBuyEnabled then return end
+    if isBuying then
+        buyRequestPending = true
+        return
+    end
     isBuying = true
 
     task.spawn(function()
-        -- 依玩家選擇順序過濾ShopItems
+        -- 依照 ShopItems 排序，挑出使用者選擇的物品購買
         local toBuyList = {}
         for _, shopItem in ipairs(ShopItems) do
             if table.find(selectedItems, shopItem) then
@@ -671,8 +676,14 @@ local function buySelectedItemsSequential()
         for _, item in ipairs(toBuyList) do
             local currentCount = countItemInInventory(item)
             if item == "Trap" then
-                local needed = math.min(trapCount, 5) -- Trap最多5個
+                local needed = math.min(trapCount, 5)
                 local toBuy = math.max(0, needed - currentCount)
+                if toBuy > 0 then
+                    buyItem(item, toBuy)
+                end
+            elseif item == "Grapple Hook" then
+                local maxGrapple = 5
+                local toBuy = math.max(0, maxGrapple - currentCount)
                 if toBuy > 0 then
                     buyItem(item, toBuy)
                 end
@@ -684,6 +695,11 @@ local function buySelectedItemsSequential()
         end
 
         isBuying = false
+
+        if buyRequestPending then
+            buyRequestPending = false
+            buySelectedItemsSequential()
+        end
     end)
 end
 
@@ -695,7 +711,9 @@ ShopTab:CreateDropdown({
     Flag = "DropdownAutoBuy",
     Callback = function(Options)
         selectedItems = Options
-        buySelectedItemsSequential()
+        if autoBuyEnabled then
+            buySelectedItemsSequential()
+        end
     end,
 })
 
