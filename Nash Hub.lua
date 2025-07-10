@@ -25,69 +25,80 @@ repeat task.wait() until player.Character and player.Character:FindFirstChild("H
 local CombatTab = Window:CreateTab("🗡️ 戰鬥", 0)
 
 local KillAuraActive = false
-local KillAuraConnection
-local attackRange = 20
-local maxTargets = 3
+local KillAuraConnection = nil
+local KillAuraDistance = 20
+local toolName = "Tung Bat"
 
--- 啟動函數
+local CombatTab = Window:CreateTab("🗡️ 戰鬥", 0)
+
 local function startKillAura()
     if KillAuraActive then return end
     KillAuraActive = true
 
     KillAuraConnection = RunService.Heartbeat:Connect(function()
         pcall(function()
-            local char = LocalPlayer.Character
+            local char = player.Character
             if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 
-            local tool = char:FindFirstChild("Tung Bat") or LocalPlayer.Backpack:FindFirstChild("Tung Bat")
+            local tool = player.Backpack:FindFirstChild(toolName) or char:FindFirstChild(toolName)
             if not tool then return end
 
-            local closestTargets = {}
+            local nearbyPlayers = {}
             for _, otherPlayer in pairs(Players:GetPlayers()) do
-                if otherPlayer ~= LocalPlayer and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    local dist = (char.HumanoidRootPart.Position - otherPlayer.Character.HumanoidRootPart.Position).Magnitude
-                    if dist <= attackRange then
-                        table.insert(closestTargets, {p = otherPlayer, d = dist})
+                if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    local dist = (otherPlayer.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+                    if dist <= KillAuraDistance then
+                        table.insert(nearbyPlayers, {player = otherPlayer, distance = dist})
                     end
                 end
             end
 
-            table.sort(closestTargets, function(a, b) return a.d < b.d end)
+            table.sort(nearbyPlayers, function(a, b) return a.distance < b.distance end)
 
-            for i = 1, math.min(maxTargets, #closestTargets) do
-                local target = closestTargets[i].p
+            for i = 1, math.min(#nearbyPlayers, 3) do
+                local target = nearbyPlayers[i].player
                 local targetChar = target.Character
-                if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
-                    local dir = (targetChar.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Unit
-                    char.HumanoidRootPart.CFrame = CFrame.lookAt(char.HumanoidRootPart.Position, char.HumanoidRootPart.Position + Vector3.new(dir.X, 0, dir.Z))
+                local targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+                if targetHRP then
+                    local dir = (targetHRP.Position - char.HumanoidRootPart.Position).Unit
+                    local lookDir = Vector3.new(dir.X, 0, dir.Z)
+                    char.HumanoidRootPart.CFrame = CFrame.lookAt(char.HumanoidRootPart.Position, char.HumanoidRootPart.Position + lookDir)
 
-                    if tool.Parent == LocalPlayer.Backpack then
+                    if tool.Parent == player.Backpack then
                         char.Humanoid:EquipTool(tool)
                     end
+
                     if tool:FindFirstChild("Handle") then
                         tool:Activate()
                     end
+
+                    task.wait(0.05)
                 end
             end
         end)
     end)
 end
 
--- 停止函數
 local function stopKillAura()
-    KillAuraActive = false
     if KillAuraConnection then
         KillAuraConnection:Disconnect()
         KillAuraConnection = nil
     end
+    KillAuraActive = false
 end
 
--- Toggle 開關（放最上）
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    if KillAuraActive then
+        startKillAura()
+    end
+end)
+
 CombatTab:CreateToggle({
-    Name = "💥 Kill Aura (Tung Bat)",
+    Name = "🗡️ 自動攻擊 (KillAura)",
     CurrentValue = false,
-    Callback = function(Value)
-        if Value then
+    Callback = function(value)
+        if value then
             startKillAura()
         else
             stopKillAura()
@@ -95,26 +106,14 @@ CombatTab:CreateToggle({
     end,
 })
 
--- ✅ 滑桿：攻擊距離（放 Toggle 底下）
 CombatTab:CreateSlider({
     Name = "攻擊距離",
     Range = {1, 100},
     Increment = 1,
-    Suffix = "Studs",
-    CurrentValue = attackRange,
-    Callback = function(Value)
-        attackRange = Value
-    end,
-})
-
--- ✅ 滑桿：最大目標數（放 Toggle 底下）
-CombatTab:CreateSlider({
-    Name = "最大攻擊目標數",
-    Range = {1, 3},
-    Increment = 1,
-    CurrentValue = maxTargets,
-    Callback = function(Value)
-        maxTargets = Value
+    Suffix = " studs",
+    CurrentValue = KillAuraDistance,
+    Callback = function(value)
+        KillAuraDistance = value
     end,
 })
 
