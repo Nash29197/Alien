@@ -256,7 +256,8 @@ MainTab:CreateToggle({
     Callback = function(Value)
         if Value then
             applyLowGravity()
-            if not player.CharacterAdded:Wait().ConnectApplied then
+            -- 修正判斷是否已連接 CharacterAdded 事件
+            if not player.CharacterAdded.ConnectApplied then
                 player.CharacterAdded:Connect(function()
                     wait(1)
                     applyLowGravity()
