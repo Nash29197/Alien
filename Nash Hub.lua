@@ -115,6 +115,54 @@ CombatTab:CreateSlider({
     end,
 })
 
+local AntiRagdollActive = false
+local AntiRagdollConnection
+
+local function startAntiRagdoll()
+    if AntiRagdollActive then return end
+    AntiRagdollActive = true
+
+    AntiRagdollConnection = RunService.Heartbeat:Connect(function()
+        local char = LocalPlayer.Character
+        if char and char.Parent and char:FindFirstChild("Humanoid") and char:FindFirstChild("HumanoidRootPart") then
+            for _, obj in pairs(char:GetDescendants()) do
+                if obj:IsA("Motor6D") and obj.Name:lower():find("ragdoll") then
+                    pcall(function() obj:Destroy() end)
+                elseif obj:IsA("BallSocketConstraint") then
+                    pcall(function() obj:Destroy() end)
+                end
+            end
+
+            local hrp = char.HumanoidRootPart
+            if hrp.Velocity.Magnitude > 0 then
+                hrp.Velocity = Vector3.new(0, 0, 0)
+            end
+        end
+    end)
+end
+
+local function stopAntiRagdoll()
+    if not AntiRagdollActive then return end
+    AntiRagdollActive = false
+    if AntiRagdollConnection then
+        AntiRagdollConnection:Disconnect()
+        AntiRagdollConnection = nil
+    end
+end
+
+CombatTab:CreateToggle({
+    Name = "🛡️ 反擊倒 (Anti-Ragdoll)",
+    CurrentValue = false,
+    Flag = "ToggleAntiRagdoll",
+    Callback = function(value)
+        if value then
+            startAntiRagdoll()
+        else
+            stopAntiRagdoll()
+        end
+    end,
+})
+
 local MainTab = Window:CreateTab("🙂 玩家", 0)
 
 -- WalkSpeed 功能
