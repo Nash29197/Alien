@@ -115,36 +115,52 @@ CombatTab:CreateSlider({
     end,
 })
 
-local antiRagdoll = false
-local originalPhysicalProperties = {}
-
-local function toggleAntiRagdoll(enable)
-    antiRagdoll = enable
+local function toggleInvisibility(enable)
     local char = LocalPlayer.Character
     if not char then return end
 
-    if antiRagdoll then
+    if enable then
         for _, part in pairs(char:GetChildren()) do
-            if part:IsA("BasePart") then
-                originalPhysicalProperties[part] = part.CustomPhysicalProperties
-                part.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.Transparency = 1
+            elseif part:IsA("Accessory") then
+                if part:FindFirstChild("Handle") then
+                    part.Handle.Transparency = 1
+                end
+            end
+        end
+        if char:FindFirstChild("Head") then
+            for _, decal in pairs(char.Head:GetChildren()) do
+                if decal:IsA("Decal") then
+                    decal.Transparency = 1
+                end
             end
         end
     else
-        for part, properties in pairs(originalPhysicalProperties) do
-            if part and part.Parent then
-                part.CustomPhysicalProperties = properties
+        for _, part in pairs(char:GetChildren()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.Transparency = 0
+            elseif part:IsA("Accessory") then
+                if part:FindFirstChild("Handle") then
+                    part.Handle.Transparency = 0
+                end
             end
         end
-        originalPhysicalProperties = {}
+        if char:FindFirstChild("Head") then
+            for _, decal in pairs(char.Head:GetChildren()) do
+                if decal:IsA("Decal") then
+                    decal.Transparency = 0
+                end
+            end
+        end
     end
 end
 
 CombatTab:CreateToggle({
-    Name = "Anti Ragdoll",
+    Name = "Invisibility",
     Default = false,
     Callback = function(value)
-        toggleAntiRagdoll(value)
+        toggleInvisibility(value)
     end
 })
 
