@@ -115,6 +115,39 @@ CombatTab:CreateSlider({
     end,
 })
 
+local antiRagdoll = false
+local originalPhysicalProperties = {}
+
+local function toggleAntiRagdoll(enable)
+    antiRagdoll = enable
+    local char = LocalPlayer.Character
+    if not char then return end
+
+    if antiRagdoll then
+        for _, part in pairs(char:GetChildren()) do
+            if part:IsA("BasePart") then
+                originalPhysicalProperties[part] = part.CustomPhysicalProperties
+                part.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
+            end
+        end
+    else
+        for part, properties in pairs(originalPhysicalProperties) do
+            if part and part.Parent then
+                part.CustomPhysicalProperties = properties
+            end
+        end
+        originalPhysicalProperties = {}
+    end
+end
+
+CombatTab:CreateToggle({
+    Name = "Anti Ragdoll",
+    Default = false,
+    Callback = function(value)
+        toggleAntiRagdoll(value)
+    end
+})
+
 local MainTab = Window:CreateTab("🙂 玩家", 0)
 
 -- WalkSpeed 功能
