@@ -24,6 +24,11 @@ repeat task.wait() until player.Character and player.Character:FindFirstChild("H
 
 local CombatTab = Window:CreateTab("🗡️ 戰鬥", 0)
 
+local KillAuraActive = false
+local KillAuraConnection = nil
+local KillAuraDistance = 20
+local toolName = "Tung Bat"
+
 local function startKillAura()
     if KillAuraActive then return end
     KillAuraActive = true
