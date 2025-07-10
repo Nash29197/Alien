@@ -24,7 +24,6 @@ repeat task.wait() until player.Character and player.Character:FindFirstChild("H
 
 local CombatTab = Window:CreateTab("🗡️ 戰鬥", 0)
 
--- ====== Kill Aura (Tung Bat 專用) ======
 local KillAuraActive = false
 local KillAuraConnection
 local attackRange = 20
@@ -84,7 +83,7 @@ local function stopKillAura()
 end
 
 -- Toggle 開關（放最上）
-MainTab:CreateToggle({
+CombatTab:CreateToggle({
     Name = "💥 Kill Aura (Tung Bat)",
     CurrentValue = false,
     Callback = function(Value)
@@ -97,7 +96,7 @@ MainTab:CreateToggle({
 })
 
 -- ✅ 滑桿：攻擊距離（放 Toggle 底下）
-MainTab:CreateSlider({
+CombatTab:CreateSlider({
     Name = "攻擊距離",
     Range = {1, 100},
     Increment = 1,
@@ -109,7 +108,7 @@ MainTab:CreateSlider({
 })
 
 -- ✅ 滑桿：最大目標數（放 Toggle 底下）
-MainTab:CreateSlider({
+CombatTab:CreateSlider({
     Name = "最大攻擊目標數",
     Range = {1, 3},
     Increment = 1,
