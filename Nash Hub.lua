@@ -27,16 +27,18 @@ local CombatTab = Window:CreateTab("🗡️ 戰鬥", 0)
 local KillAuraActive = false
 local KillAuraConnection = nil
 local KillAuraDistance = 20
+local toolName = "Tung Bat"
 
 local function startKillAura()
     if KillAuraActive then return end
     KillAuraActive = true
+
     KillAuraConnection = RunService.Heartbeat:Connect(function()
         pcall(function()
             local char = player.Character
             if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 
-            local tool = player.Backpack:FindFirstChildOfClass("Tool") or char:FindFirstChildOfClass("Tool")
+            local tool = player.Backpack:FindFirstChild(toolName) or char:FindFirstChild(toolName)
             if not tool then return end
 
             local nearbyPlayers = {}
@@ -83,11 +85,18 @@ local function stopKillAura()
     KillAuraActive = false
 end
 
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    if KillAuraActive then
+        startKillAura()
+    end
+end)
+
 CombatTab:CreateToggle({
-    Name = "🗡️ 自動攻擊 KillAura",
+    Name = "🗡️ 自動攻擊 (KillAura)",
     CurrentValue = false,
-    Callback = function(Value)
-        if Value then
+    Callback = function(value)
+        if value then
             startKillAura()
         else
             stopKillAura()
@@ -101,8 +110,8 @@ CombatTab:CreateSlider({
     Increment = 1,
     Suffix = " studs",
     CurrentValue = KillAuraDistance,
-    Callback = function(Value)
-        KillAuraDistance = Value
+    Callback = function(value)
+        KillAuraDistance = value
     end,
 })
 
