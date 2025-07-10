@@ -24,56 +24,45 @@ repeat task.wait() until player.Character and player.Character:FindFirstChild("H
 
 local CombatTab = Window:CreateTab("🗡️ 戰鬥", 0)
 
-local killAuraActive = false
-local killAuraConnection = nil
-local killAuraDistance = 10
+local KillAuraActive = false
+local KillAuraConnection = nil
+local KillAuraDistance = 20
 
 local function startKillAura()
-    if killAuraActive then return end
-    killAuraActive = true
-
-    killAuraConnection = RunService.Heartbeat:Connect(function()
+    if KillAuraActive then return end
+    KillAuraActive = true
+    KillAuraConnection = RunService.Heartbeat:Connect(function()
         pcall(function()
             local char = player.Character
             if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 
-            local humanoid = char:FindFirstChildOfClass("Humanoid")
-            if not humanoid then return end
-
-            -- 只找 "Tung Bat"
-            local tool = player.Backpack:FindFirstChild("Tung Bat") or char:FindFirstChild("Tung Bat")
+            local tool = player.Backpack:FindFirstChildOfClass("Tool") or char:FindFirstChildOfClass("Tool")
             if not tool then return end
 
-            -- 裝備工具，如果尚未裝備
-            local equippedTool = humanoid:FindFirstChildOfClass("Tool")
-            if equippedTool ~= tool then
-                humanoid:EquipTool(tool)
-            end
-
             local nearbyPlayers = {}
-
-            for _, p in pairs(Players:GetPlayers()) do
-                if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                    local dist = (p.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
-                    if dist <= killAuraDistance then
-                        table.insert(nearbyPlayers, {player = p, distance = dist})
+            for _, otherPlayer in pairs(Players:GetPlayers()) do
+                if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    local dist = (otherPlayer.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+                    if dist <= KillAuraDistance then
+                        table.insert(nearbyPlayers, {player = otherPlayer, distance = dist})
                     end
                 end
             end
 
-            table.sort(nearbyPlayers, function(a, b)
-                return a.distance < b.distance
-            end)
+            table.sort(nearbyPlayers, function(a, b) return a.distance < b.distance end)
 
             for i = 1, math.min(#nearbyPlayers, 3) do
                 local target = nearbyPlayers[i].player
                 local targetChar = target.Character
                 local targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
-
                 if targetHRP then
                     local dir = (targetHRP.Position - char.HumanoidRootPart.Position).Unit
                     local lookDir = Vector3.new(dir.X, 0, dir.Z)
                     char.HumanoidRootPart.CFrame = CFrame.lookAt(char.HumanoidRootPart.Position, char.HumanoidRootPart.Position + lookDir)
+
+                    if tool.Parent == player.Backpack then
+                        char.Humanoid:EquipTool(tool)
+                    end
 
                     if tool:FindFirstChild("Handle") then
                         tool:Activate()
@@ -87,24 +76,15 @@ local function startKillAura()
 end
 
 local function stopKillAura()
-    if killAuraConnection then
-        killAuraConnection:Disconnect()
-        killAuraConnection = nil
+    if KillAuraConnection then
+        KillAuraConnection:Disconnect()
+        KillAuraConnection = nil
     end
-    killAuraActive = false
+    KillAuraActive = false
 end
 
--- 角色重生後自動重啟 KillAura
-player.CharacterAdded:Connect(function()
-    if killAuraActive then
-        task.wait(1)
-        startKillAura()
-    end
-end)
-
--- UI 控制開關與距離滑桿
 CombatTab:CreateToggle({
-    Name = "🗡️ 自動攻擊 (KillAura)",
+    Name = "🗡️ 自動攻擊 KillAura",
     CurrentValue = false,
     Callback = function(Value)
         if Value then
@@ -116,13 +96,13 @@ CombatTab:CreateToggle({
 })
 
 CombatTab:CreateSlider({
-    Name = "攻擊距離 (studs)",
+    Name = "攻擊距離",
     Range = {5, 50},
     Increment = 1,
     Suffix = " studs",
-    CurrentValue = killAuraDistance,
+    CurrentValue = KillAuraDistance,
     Callback = function(Value)
-        killAuraDistance = Value
+        KillAuraDistance = Value
     end,
 })
 
