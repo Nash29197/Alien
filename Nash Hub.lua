@@ -22,63 +22,105 @@ local player = Players.LocalPlayer
 if not game:IsLoaded() then game.Loaded:Wait() end
 repeat task.wait() until player.Character and player.Character:FindFirstChild("Humanoid")
 
-local MainTab = Window:CreateTab("🗡️ 戰鬥", 0)
+local CombatTab = Window:CreateTab("🗡️ 戰鬥", 0)
 
-local walkFlingCons = {}
+-- KillAura 狀態變數
+local killAuraActive = false
+local killAuraConnection = nil
+local killAuraDistance = 10
+local lastEquippedTool = nil
 
-local function startWalkFling()
+-- KillAura 主功能
+local function startKillAura()
+    if killAuraActive then return end
+    killAuraActive = true
 
-    local character = player.Character or workspace:FindFirstChild(player.Name)
-    local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+    killAuraConnection = RunService.Heartbeat:Connect(function()
+        pcall(function()
+            local char = LocalPlayer.Character
+            if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 
-    local function flingStep()
-        if not humanoidRootPart or not humanoidRootPart.Parent then return end
+            local tool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool") or char:FindFirstChildOfClass("Tool")
+            if not tool then return end
 
-        for _, plr in pairs(game.Players:GetPlayers()) do
-            if plr ~= player and plr.Character then
-                local targetHrp = plr.Character:FindFirstChild("HumanoidRootPart")
-                if targetHrp and (targetHrp.Position - humanoidRootPart.Position).Magnitude < 10 then
-                    targetHrp.Velocity = Vector3.new(100, 100, 100)
+            local nearbyPlayers = {}
+
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local dist = (player.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+                    if dist <= killAuraDistance then
+                        table.insert(nearbyPlayers, {player = player, distance = dist})
+                    end
                 end
             end
-        end
-    end
 
-    -- 先斷線避免重複連接
-    if walkFlingCons.connection then
-        walkFlingCons.connection:Disconnect()
-    end
-    if walkFlingCons.charAdded then
-        walkFlingCons.charAdded:Disconnect()
-    end
+            table.sort(nearbyPlayers, function(a, b)
+                return a.distance < b.distance
+            end)
 
-    walkFlingCons.connection = RunService.RenderStepped:Connect(flingStep)
-    walkFlingCons.charAdded = player.CharacterAdded:Connect(function(newChar)
-        character = newChar
-        humanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
+            for i = 1, math.min(#nearbyPlayers, 3) do
+                local target = nearbyPlayers[i].player
+                local targetChar = target.Character
+                local targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+
+                if targetHRP then
+                    local dir = (targetHRP.Position - char.HumanoidRootPart.Position).Unit
+                    local lookDir = Vector3.new(dir.X, 0, dir.Z)
+                    char.HumanoidRootPart.CFrame = CFrame.lookAt(char.HumanoidRootPart.Position, char.HumanoidRootPart.Position + lookDir)
+
+                    if tool.Parent == LocalPlayer.Backpack and tool ~= lastEquippedTool then
+                        char.Humanoid:EquipTool(tool)
+                        lastEquippedTool = tool
+                    end
+
+                    if tool:FindFirstChild("Handle") then
+                        tool:Activate()
+                    end
+
+                    task.wait(0.05)
+                end
+            end
+        end)
     end)
 end
 
-local function stopWalkFling()
-    if walkFlingCons.connection then
-        walkFlingCons.connection:Disconnect()
-        walkFlingCons.connection = nil
+local function stopKillAura()
+    if killAuraConnection then
+        killAuraConnection:Disconnect()
+        killAuraConnection = nil
     end
-    if walkFlingCons.charAdded then
-        walkFlingCons.charAdded:Disconnect()
-        walkFlingCons.charAdded = nil
-    end
+    killAuraActive = false
 end
 
-MainTab:CreateToggle({
-    Name = "強力擊飛!",
+-- 角色重生後重新啟用 KillAura
+LocalPlayer.CharacterAdded:Connect(function()
+    if killAuraActive then
+        task.wait(1)
+        startKillAura()
+    end
+end)
+
+-- ✅ 加入 Nash Hub 的 Combat 分頁 UI 控制項
+CombatTab:CreateToggle({
+    Name = "🗡️ 自動攻擊,
     CurrentValue = false,
-    Callback = function(value)
-        if value then
-            startWalkFling()
+    Callback = function(Value)
+        if Value then
+            startKillAura()
         else
-            stopWalkFling()
+            stopKillAura()
         end
+    end,
+})
+
+CombatTab:CreateSlider({
+    Name = "距離",
+    Range = {5, 50},
+    Increment = 1,
+    Suffix = " studs",
+    CurrentValue = killAuraDistance,
+    Callback = function(Value)
+        killAuraDistance = Value
     end,
 })
 
