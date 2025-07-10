@@ -24,32 +24,30 @@ repeat task.wait() until player.Character and player.Character:FindFirstChild("H
 
 local CombatTab = Window:CreateTab("🗡️ 戰鬥", 0)
 
--- KillAura 狀態變數
 local killAuraActive = false
 local killAuraConnection = nil
 local killAuraDistance = 10
 local lastEquippedTool = nil
 
--- KillAura 主功能
 local function startKillAura()
     if killAuraActive then return end
     killAuraActive = true
 
     killAuraConnection = RunService.Heartbeat:Connect(function()
         pcall(function()
-            local char = LocalPlayer.Character
+            local char = player.Character
             if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 
-            local tool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool") or char:FindFirstChildOfClass("Tool")
+            local tool = player.Backpack:FindFirstChildOfClass("Tool") or char:FindFirstChildOfClass("Tool")
             if not tool then return end
 
             local nearbyPlayers = {}
 
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    local dist = (player.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local dist = (p.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
                     if dist <= killAuraDistance then
-                        table.insert(nearbyPlayers, {player = player, distance = dist})
+                        table.insert(nearbyPlayers, {player = p, distance = dist})
                     end
                 end
             end
@@ -68,7 +66,7 @@ local function startKillAura()
                     local lookDir = Vector3.new(dir.X, 0, dir.Z)
                     char.HumanoidRootPart.CFrame = CFrame.lookAt(char.HumanoidRootPart.Position, char.HumanoidRootPart.Position + lookDir)
 
-                    if tool.Parent == LocalPlayer.Backpack and tool ~= lastEquippedTool then
+                    if tool.Parent == player.Backpack and tool ~= lastEquippedTool then
                         char.Humanoid:EquipTool(tool)
                         lastEquippedTool = tool
                     end
@@ -92,20 +90,18 @@ local function stopKillAura()
     killAuraActive = false
 end
 
--- 角色重生後重新啟用 KillAura
-LocalPlayer.CharacterAdded:Connect(function()
+player.CharacterAdded:Connect(function()
     if killAuraActive then
         task.wait(1)
         startKillAura()
     end
 end)
 
--- ✅ 加入 Nash Hub 的 Combat 分頁 UI 控制項
 CombatTab:CreateToggle({
-    Name = "🗡️ 自動攻擊,
+    Name = "🗡️ 自動攻擊",
     CurrentValue = false,
-    Callback = function(Value)
-        if Value then
+    Callback = function(value)
+        if value then
             startKillAura()
         else
             stopKillAura()
@@ -119,8 +115,8 @@ CombatTab:CreateSlider({
     Increment = 1,
     Suffix = " studs",
     CurrentValue = killAuraDistance,
-    Callback = function(Value)
-        killAuraDistance = Value
+    Callback = function(value)
+        killAuraDistance = value
     end,
 })
 
