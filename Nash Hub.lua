@@ -27,7 +27,6 @@ local CombatTab = Window:CreateTab("🗡️ 戰鬥", 0)
 local killAuraActive = false
 local killAuraConnection = nil
 local killAuraDistance = 10
-local lastEquippedTool = nil
 
 local function startKillAura()
     if killAuraActive then return end
@@ -38,8 +37,18 @@ local function startKillAura()
             local char = player.Character
             if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 
-            local tool = player.Backpack:FindFirstChildOfClass("Tool") or char:FindFirstChildOfClass("Tool")
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if not humanoid then return end
+
+            -- 只找 "Tung Bat"
+            local tool = player.Backpack:FindFirstChild("Tung Bat") or char:FindFirstChild("Tung Bat")
             if not tool then return end
+
+            -- 裝備工具，如果尚未裝備
+            local equippedTool = humanoid:FindFirstChildOfClass("Tool")
+            if equippedTool ~= tool then
+                humanoid:EquipTool(tool)
+            end
 
             local nearbyPlayers = {}
 
@@ -66,11 +75,6 @@ local function startKillAura()
                     local lookDir = Vector3.new(dir.X, 0, dir.Z)
                     char.HumanoidRootPart.CFrame = CFrame.lookAt(char.HumanoidRootPart.Position, char.HumanoidRootPart.Position + lookDir)
 
-                    if tool.Parent == player.Backpack and tool ~= lastEquippedTool then
-                        char.Humanoid:EquipTool(tool)
-                        lastEquippedTool = tool
-                    end
-
                     if tool:FindFirstChild("Handle") then
                         tool:Activate()
                     end
@@ -90,6 +94,7 @@ local function stopKillAura()
     killAuraActive = false
 end
 
+-- 角色重生後自動重啟 KillAura
 player.CharacterAdded:Connect(function()
     if killAuraActive then
         task.wait(1)
@@ -97,11 +102,12 @@ player.CharacterAdded:Connect(function()
     end
 end)
 
+-- UI 控制開關與距離滑桿
 CombatTab:CreateToggle({
-    Name = "🗡️ 自動攻擊",
+    Name = "🗡️ 自動攻擊 (KillAura)",
     CurrentValue = false,
-    Callback = function(value)
-        if value then
+    Callback = function(Value)
+        if Value then
             startKillAura()
         else
             stopKillAura()
@@ -110,13 +116,13 @@ CombatTab:CreateToggle({
 })
 
 CombatTab:CreateSlider({
-    Name = "距離",
+    Name = "攻擊距離 (studs)",
     Range = {5, 50},
     Increment = 1,
     Suffix = " studs",
     CurrentValue = killAuraDistance,
-    Callback = function(value)
-        killAuraDistance = value
+    Callback = function(Value)
+        killAuraDistance = Value
     end,
 })
 
