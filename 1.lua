@@ -1,0 +1,1080 @@
+
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Window = Rayfield:CreateWindow({
+    Name = "🔧 Mobile Admin Tools Pro",
+    LoadingTitle = "Loading enhanced tools...",
+    LoadingSubtitle = "Ultra Optimized Edition",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "MobileToolsProConfig",
+        FileName = "UltraOptimizedConfig"
+    }
+})
+
+-- Servizi e variabili
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local TeleportService = game:GetService("TeleportService")
+local Player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Variabili
+local Connections = {}
+local ESPCache = {}
+local SpawnPosition = nil
+local AirJumpEnabled = false
+local SpeedBoostActive = false
+local SpeedBoostButton = nil
+local NoClipEnabled = false
+local StealHelperEnabled = false
+local StealGUI = nil
+local AntiAFKEnabled = false
+local AutoCollectEnabled = false
+local FastStealEnabled = false
+local FastStealConnection = nil
+local KillAuraActive = false
+local KillAuraConnection = nil
+local OriginalWalkSpeed = 16
+local OriginalJumpPower = 50
+
+-- NUOVE VARIABILI PER BASE TELEPORT
+local HomeBasePosition = nil
+local EnemyBasePosition = nil
+local BaseTeleportEnabled = false
+local FlyingModeEnabled = false
+local FlyVelocity = nil
+local FlyGyro = nil
+
+-- Funzioni di utilità
+local function cleanupConnection(name)
+    if Connections[name] then
+        Connections[name]:Disconnect()
+        Connections[name] = nil
+    end
+end
+
+local function notify(title, content, duration)
+    Rayfield:Notify({
+        Title = title,
+        Content = content,
+        Duration = duration or 3,
+        Image = 13014546637,
+    })
+end
+
+local function createCorner(parent, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(radius or 0.1, 0)
+    corner.Parent = parent
+    return corner
+end
+
+local function makeDraggable(gui)
+    local dragging, dragInput, dragStart, startPos
+    gui.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = gui.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    gui.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            gui.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- Memorizza posizione spawn
+local function storeSpawnPosition()
+    local character = Player.Character
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        SpawnPosition = character.HumanoidRootPart.Position
+    end
+end
+
+Player.CharacterAdded:Connect(function()
+    task.wait(2)
+    storeSpawnPosition()
+end)
+
+if Player.Character then
+    storeSpawnPosition()
+end
+
+-- ======= SISTEMA FAST STEAL MIGLIORATO =======
+local function modifyPrompt(prompt)
+    if not prompt:IsDescendantOf(game:GetService("CoreGui")) then
+        prompt.HoldDuration = 0
+        prompt.RequiresLineOfSight = false
+        prompt.MaxActivationDistance = 50
+    end
+end
+
+local function scanAndModifyPrompts()
+    for _, obj in ipairs(Workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") then
+            modifyPrompt(obj)
+        end
+    end
+end
+
+local function autoClickNearbyPrompts()
+    local character = Player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local root = character.HumanoidRootPart
+    local clicked = false
+    
+    for _, prompt in ipairs(ProximityPromptService:GetPrompts()) do
+        if prompt.Enabled and prompt.Visible then
+            local part = prompt.Parent
+            if part:IsA("BasePart") then
+                local distance = (root.Position - part.Position).Magnitude
+                if distance <= prompt.MaxActivationDistance then
+                    ProximityPromptService:PromptTriggered(prompt, Player)
+                    clicked = true
+                    task.wait(0.1) -- Breve pausa tra i click
+                end
+            end
+        end
+    end
+    
+    return clicked
+end
+-- ======= FINE FIX =======
+
+-- ======= SISTEMA KILL AURA =======
+local function startKillAura()
+    if KillAuraActive then return end
+    KillAuraActive = true
+    KillAuraConnection = RunService.Heartbeat:Connect(function()
+        pcall(function()
+            local char = Player.Character
+            if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+            
+            local tool = Player.Backpack:FindFirstChildOfClass("Tool")
+            if not tool then tool = char:FindFirstChildOfClass("Tool") end
+            
+            if tool then
+                local nearbyPlayers = {}
+                for _, player in pairs(Players:GetPlayers()) do
+                    if player ~= Player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                        local distance = (player.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+                        if distance < 20 then
+                            table.insert(nearbyPlayers, {player = player, distance = distance})
+                        end
+                    end
+                end
+                
+                table.sort(nearbyPlayers, function(a, b) return a.distance < b.distance end)
+                
+                for i = 1, math.min(#nearbyPlayers, 3) do
+                    local targetPlayer = nearbyPlayers[i].player
+                    local targetChar = targetPlayer.Character
+                    if targetChar and targetChar:FindFirstChild("HumanoidRootPart") then
+                        local targetDirection = (targetChar.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Unit
+                        local lookDirection = Vector3.new(targetDirection.X, 0, targetDirection.Z)
+                        char.HumanoidRootPart.CFrame = CFrame.lookAt(char.HumanoidRootPart.Position, char.HumanoidRootPart.Position + lookDirection)
+                        
+                        if tool.Parent == Player.Backpack then
+                            char.Humanoid:EquipTool(tool)
+                        end
+                        if tool:FindFirstChild("Handle") then
+                            tool:Activate()
+                        end
+                        task.wait(0.05)
+                    end
+                end
+            end
+        end)
+    end)
+end
+
+local function stopKillAura()
+    if KillAuraConnection then
+        KillAuraConnection:Disconnect()
+        KillAuraConnection = nil
+    end
+    KillAuraActive = false
+end
+-- ======= FINE KILL AURA =======
+
+-- ======= SISTEMA VOLO =======
+local function startFlying()
+    if FlyingModeEnabled then return end
+    FlyingModeEnabled = true
+    
+    local character = Player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local root = character.HumanoidRootPart
+    
+    -- Crea i controlli di volo
+    FlyVelocity = Instance.new("BodyVelocity")
+    FlyVelocity.Velocity = Vector3.new(0, 0, 0)
+    FlyVelocity.MaxForce = Vector3.new(10000, 10000, 10000)
+    FlyVelocity.P = 1000
+    FlyVelocity.Parent = root
+    
+    FlyGyro = Instance.new("BodyGyro")
+    FlyGyro.MaxTorque = Vector3.new(10000, 10000, 10000)
+    FlyGyro.P = 1000
+    FlyGyro.D = 100
+    FlyGyro.Parent = root
+    
+    notify("Flying Mode 🚀", "Use WASD to fly, Space to go up, Ctrl to go down", 4)
+end
+
+local function stopFlying()
+    FlyingModeEnabled = false
+    
+    if FlyVelocity then
+        FlyVelocity:Destroy()
+        FlyVelocity = nil
+    end
+    
+    if FlyGyro then
+        FlyGyro:Destroy()
+        FlyGyro = nil
+    end
+end
+
+local function updateFlying()
+    if not FlyingModeEnabled then return end
+    
+    local character = Player.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local root = character.HumanoidRootPart
+    
+    -- Calcola la direzione di movimento
+    local moveDirection = Vector3.new(0, 0, 0)
+    local cameraDirection = Camera.CFrame.LookVector
+    
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+        moveDirection = moveDirection + cameraDirection
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+        moveDirection = moveDirection - cameraDirection
+    end
+    if UserInputService:IsKeyCode(Enum.KeyCode.A) then
+        moveDirection = moveDirection - Camera.CFrame.RightVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+        moveDirection = moveDirection + Camera.CFrame.RightVector
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+        moveDirection = moveDirection + Vector3.new(0, 1, 0)
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+        moveDirection = moveDirection + Vector3.new(0, -1, 0)
+    end
+    
+    -- Normalizza e applica la velocità
+    moveDirection = moveDirection.Unit
+    FlyVelocity.Velocity = moveDirection * 50
+    FlyGyro.CFrame = Camera.CFrame
+end
+-- ======= FINE SISTEMA VOLO =======
+
+-- Tab Principale
+local MainTab = Window:CreateTab("Main", 13014546637)
+local MainSection = MainTab:CreateSection("Core Features")
+
+-- Toggle Fast Steal con auto-click
+MainTab:CreateToggle({
+    Name = "⚡ Auto-Click Proximity",
+    CurrentValue = false,
+    Flag = "AutoClick",
+    Callback = function(Value)
+        FastStealEnabled = Value
+        if Value then
+            scanAndModifyPrompts()
+            FastStealConnection = RunService.Heartbeat:Connect(function()
+                if FastStealEnabled then
+                    autoClickNearbyPrompts()
+                end
+            end)
+            notify("Auto-Click Enabled", "Automatically clicking nearby objects", 3)
+        else
+            if FastStealConnection then
+                FastStealConnection:Disconnect()
+                FastStealConnection = nil
+            end
+            notify("Auto-Click Disabled", "Manual interaction required", 3)
+        end
+    end,
+})
+
+-- Air Jump
+MainTab:CreateToggle({
+    Name = "🦘 Air Jump",
+    CurrentValue = false,
+    Flag = "AirJump",
+    Callback = function(Value)
+        AirJumpEnabled = Value
+        if Value then notify("Air Jump Enabled", "Jump in mid-air activated") end
+    end,
+})
+
+Connections.JumpButton = UserInputService.JumpRequest:Connect(function()
+    if not AirJumpEnabled then return end
+    local character = Player.Character
+    if not character then return end
+    
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    local rootPart = character:FindFirstChild("HumanoidRootPart")
+    if humanoid and rootPart and humanoid.FloorMaterial == Enum.Material.Air then
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+        bodyVelocity.Velocity = Vector3.new(0, 65, 0)
+        bodyVelocity.Parent = rootPart
+        game:GetService("Debris"):AddItem(bodyVelocity, 0.3)
+    end
+end)
+
+-- Speed Boost (Bypassabile)
+local SpeedBoostToggle = MainTab:CreateToggle({
+    Name = "🚀 Speed Boost",
+    CurrentValue = false,
+    Flag = "SpeedBoost",
+    Callback = function(Value)
+        if Value then
+            local gui = Instance.new("ScreenGui")
+            gui.Name = "SpeedBoostGUI"
+            gui.Parent = CoreGui
+            gui.ResetOnSpawn = false
+            
+            local button = Instance.new("TextButton")
+            button.Size = UDim2.new(0.14, 0, 0.07, 0)
+            button.Position = UDim2.new(0.83, 0, 0.73, 0)
+            button.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+            button.TextColor3 = Color3.new(1, 1, 1)
+            button.Text = "💨 OFF"
+            button.Font = Enum.Font.GothamBold
+            button.TextSize = 16
+            button.BorderSizePixel = 0
+            button.ZIndex = 10
+            button.Parent = gui
+            createCorner(button, 0.3)
+            makeDraggable(button)
+            
+            button.MouseButton1Click:Connect(function()
+                SpeedBoostActive = not SpeedBoostActive
+                button.Text = SpeedBoostActive and "💨 ON" or "💨 OFF"
+                button.BackgroundColor3 = SpeedBoostActive and Color3.fromRGB(80, 255, 80) or Color3.fromRGB(255, 80, 80)
+                
+                local tween = TweenService:Create(button, TweenInfo.new(0.1), {Size = UDim2.new(0.16, 0, 0.08, 0)})
+                tween:Play()
+                tween.Completed:Connect(function()
+                    TweenService:Create(button, TweenInfo.new(0.1), {Size = UDim2.new(0.14, 0, 0.07, 0)}):Play()
+                end)
+            end)
+            
+            SpeedBoostButton = button
+        else
+            if SpeedBoostButton then
+                SpeedBoostButton.Parent:Destroy()
+                SpeedBoostButton = nil
+            end
+            SpeedBoostActive = false
+        end
+    end,
+})
+
+-- NoClip Migliorato (Bypass Pareti)
+MainTab:CreateToggle({
+    Name = "👻 NoClip",
+    CurrentValue = false,
+    Flag = "NoClip",
+    Callback = function(Value)
+        NoClipEnabled = Value
+        if Value then
+            notify("NoClip Enabled", "Walk through walls activated")
+            Connections.NoClip = RunService.Stepped:Connect(function()
+                if NoClipEnabled then
+                    local character = Player.Character
+                    if character then
+                        for _, part in pairs(character:GetChildren()) do
+                            if part:IsA("BasePart") then
+                                part.CanCollide = false
+                                part.Velocity = Vector3.new(0, 0, 0)
+                                part.RotVelocity = Vector3.new(0, 0, 0)
+                            end
+                        end
+                    end
+                end
+            end)
+        else
+            cleanupConnection("NoClip")
+            local character = Player.Character
+            if character then
+                for _, part in pairs(character:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        part.CanCollide = true
+                    end
+                end
+            end
+        end
+    end,
+})
+
+-- Kill Aura
+MainTab:CreateToggle({
+    Name = "⚔️ Kill Aura 360°",
+    CurrentValue = false,
+    Flag = "KillAura",
+    Callback = function(Value)
+        if Value then
+            startKillAura()
+            notify("Kill Aura Enabled", "360° Kill Aura activated - attacks from all directions", 3)
+        else
+            stopKillAura()
+            notify("Kill Aura Disabled", "Kill Aura deactivated", 2)
+        end
+    end,
+})
+
+-- Flying Mode
+MainTab:CreateToggle({
+    Name = "🚀 Flying Mode",
+    CurrentValue = false,
+    Flag = "FlyingMode",
+    Callback = function(Value)
+        if Value then
+            startFlying()
+        else
+            stopFlying()
+        end
+    end,
+})
+
+-- Steal Helper Migliorato
+MainTab:CreateToggle({
+    Name = "🎯 Steal Helper",
+    CurrentValue = false,
+    Flag = "StealHelper",
+    Callback = function(Value)
+        StealHelperEnabled = Value
+        if Value then
+            StealGUI = Instance.new("ScreenGui")
+            StealGUI.Name = "StealHelperGUI"
+            StealGUI.Parent = CoreGui
+            StealGUI.ResetOnSpawn = false
+            
+            local mainFrame = Instance.new("Frame")
+            mainFrame.Size = UDim2.new(0.28, 0, 0.16, 0)
+            mainFrame.Position = UDim2.new(0.02, 0, 0.65, 0)
+            mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+            mainFrame.BackgroundTransparency = 0.05
+            mainFrame.BorderSizePixel = 0
+            mainFrame.Parent = StealGUI
+            createCorner(mainFrame, 0.2)
+            makeDraggable(mainFrame)
+            
+            local gradient = Instance.new("UIGradient")
+            gradient.Color = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(45, 45, 65)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(25, 25, 35))
+            }
+            gradient.Rotation = 45
+            gradient.Parent = mainFrame
+            
+            local headerFrame = Instance.new("Frame")
+            headerFrame.Size = UDim2.new(1, 0, 0.25, 0)
+            headerFrame.Position = UDim2.new(0, 0, 0, 0)
+            headerFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 50)
+            headerFrame.BackgroundTransparency = 0.3
+            headerFrame.BorderSizePixel = 0
+            headerFrame.Parent = mainFrame
+            createCorner(headerFrame, 0.2)
+            
+            local titleLabel = Instance.new("TextLabel")
+            titleLabel.Size = UDim2.new(0.6, 0, 1, 0)
+            titleLabel.Position = UDim2.new(0.05, 0, 0, 0)
+            titleLabel.BackgroundTransparency = 1
+            titleLabel.Text = "🎯 Steal Helper Pro"
+            titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            titleLabel.Font = Enum.Font.GothamBold
+            titleLabel.TextSize = 18
+            titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+            titleLabel.Parent = headerFrame
+            
+            local closeButton = Instance.new("TextButton")
+            closeButton.Size = UDim2.new(0.3, 0, 0.8, 0)
+            closeButton.Position = UDim2.new(0.65, 0, 0.1, 0)
+            closeButton.BackgroundColor3 = Color3.fromRGB(255, 85, 85)
+            closeButton.Text = "✕"
+            closeButton.TextColor3 = Color3.new(1, 1, 1)
+            closeButton.Font = Enum.Font.GothamBold
+            closeButton.TextSize = 16
+            closeButton.BorderSizePixel = 0
+            closeButton.Parent = headerFrame
+            createCorner(closeButton, 0.4)
+            
+            closeButton.MouseButton1Click:Connect(function()
+                StealGUI:Destroy()
+                StealGUI = nil
+                StealHelperEnabled = false
+                StealHelperToggle:Set(false)
+            end)
+            
+            local isUp = true
+            local moveButton = Instance.new("TextButton")
+            moveButton.Size = UDim2.new(0.9, 0, 0.5, 0)
+            moveButton.Position = UDim2.new(0.05, 0, 0.3, 0)
+            moveButton.Text = "⬆️ TELEPORT UP"
+            moveButton.TextSize = 20
+            moveButton.TextColor3 = Color3.new(1, 1, 1)
+            moveButton.BackgroundColor3 = Color3.fromRGB(85, 170, 85)
+            moveButton.Font = Enum.Font.GothamBold
+            moveButton.BorderSizePixel = 0
+            moveButton.Parent = mainFrame
+            createCorner(moveButton, 0.25)
+            
+            local buttonGradient = Instance.new("UIGradient")
+            buttonGradient.Color = ColorSequence.new{
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 200, 120)),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(85, 170, 85))
+            }
+            buttonGradient.Rotation = 90
+            buttonGradient.Parent = moveButton
+            
+            moveButton.MouseButton1Click:Connect(function()
+                local character = Player.Character
+                if character then
+                    local rootPart = character:FindFirstChild("HumanoidRootPart")
+                    if rootPart then
+                        if isUp then
+                            rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 180, 0)
+                            moveButton.Text = "⬇️ TELEPORT DOWN"
+                            moveButton.BackgroundColor3 = Color3.fromRGB(170, 85, 85)
+                            buttonGradient.Color = ColorSequence.new{
+                                ColorSequenceKeypoint.new(0, Color3.fromRGB(200, 120, 120)),
+                                ColorSequenceKeypoint.new(1, Color3.fromRGB(170, 85, 85))
+                            }
+                        else
+                            rootPart.CFrame = rootPart.CFrame - Vector3.new(0, 60, 0)
+                            moveButton.Text = "⬆️ TELEPORT UP"
+                            moveButton.BackgroundColor3 = Color3.fromRGB(85, 170, 85)
+                            buttonGradient.Color = ColorSequence.new{
+                                ColorSequenceKeypoint.new(0, Color3.fromRGB(120, 200, 120)),
+                                ColorSequenceKeypoint.new(1, Color3.fromRGB(85, 170, 85))
+                            }
+                        end
+                        isUp = not isUp
+                        
+                        local tween = TweenService:Create(moveButton, TweenInfo.new(0.1), {Size = UDim2.new(0.85, 0, 0.45, 0)})
+                        tween:Play()
+                        tween.Completed:Connect(function()
+                            TweenService:Create(moveButton, TweenInfo.new(0.1), {Size = UDim2.new(0.9, 0, 0.5, 0)}):Play()
+                        end)
+                    end
+                end
+            end)
+            
+            local coordLabel = Instance.new("TextLabel")
+            coordLabel.Size = UDim2.new(0.9, 0, 0.18, 0)
+            coordLabel.Position = UDim2.new(0.05, 0, 0.82, 0)
+            coordLabel.Text = "📍 X:0 Y:0 Z:0"
+            coordLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+            coordLabel.BackgroundTransparency = 1
+            coordLabel.Font = Enum.Font.GothamBold
+            coordLabel.TextSize = 14
+            coordLabel.TextScaled = true
+            coordLabel.Parent = mainFrame
+            
+            task.spawn(function()
+                while StealGUI and StealGUI.Parent do
+                    local character = Player.Character
+                    if character then
+                        local rootPart = character:FindFirstChild("HumanoidRootPart")
+                        if rootPart then
+                            coordLabel.Text = string.format("📍 X:%d Y:%d Z:%d", 
+                                math.floor(rootPart.Position.X), 
+                                math.floor(rootPart.Position.Y), 
+                                math.floor(rootPart.Position.Z))
+                        end
+                    end
+                    task.wait(0.3)
+                end
+            end)
+            
+            notify("Steal Helper Pro Active", "Enhanced GUI loaded with bigger controls!")
+        else
+            if StealGUI then
+                StealGUI:Destroy()
+                StealGUI = nil
+            end
+        end
+    end,
+})
+
+-- Tab Visual (FIXED)
+local VisualTab = Window:CreateTab("Visual", 13014546637)
+local VisualSection = VisualTab:CreateSection("Visual Settings")
+
+-- Player ESP FIXED
+VisualTab:CreateToggle({
+    Name = "👤 Player ESP",
+    CurrentValue = false,
+    Flag = "PlayerESP",
+    Callback = function(Value)
+        if Value then
+            -- Pulizia cache esistente
+            for _, highlight in pairs(ESPCache) do
+                if highlight then highlight:Destroy() end
+            end
+            ESPCache = {}
+            
+            -- Funzione per aggiungere ESP
+            local function addESP(player)
+                if player == Player then return end
+                
+                local character = player.Character
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "PlayerESP"
+                    highlight.FillColor = Color3.fromRGB(100, 200, 255)
+                    highlight.OutlineColor = Color3.fromRGB(0, 100, 200)
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineTransparency = 0
+                    highlight.Parent = character
+                    
+                    ESPCache[player] = highlight
+                end
+            end
+            
+            -- Aggiungi ESP per tutti i giocatori esistenti
+            for _, player in ipairs(Players:GetPlayers()) do
+                addESP(player)
+            end
+            
+            -- Connessioni per nuovi giocatori
+            Connections.PlayerAdded_ESP = Players.PlayerAdded:Connect(addESP)
+            
+            notify("Player ESP Enabled", "All players highlighted")
+        else
+            cleanupConnection("PlayerAdded_ESP")
+            for _, highlight in pairs(ESPCache) do
+                if highlight then highlight:Destroy() end
+            end
+            ESPCache = {}
+        end
+    end,
+})
+
+-- Name ESP FIXED
+local NameESPCache = {}
+VisualTab:CreateToggle({
+    Name = "📛 Name ESP",
+    CurrentValue = false,
+    Flag = "NameESP",
+    Callback = function(Value)
+        if Value then
+            -- Funzione per aggiungere Name ESP
+            local function addNameESP(player)
+                if player == Player then return end
+                
+                local character = player.Character
+                if character and character:FindFirstChild("Head") then
+                    local head = character.Head
+                    
+                    -- Rimuovi vecchi elementi se esistono
+                    if NameESPCache[player] then
+                        NameESPCache[player]:Destroy()
+                    end
+                    
+                    -- Crea nuovo BillboardGui
+                    local billboard = Instance.new("BillboardGui")
+                    billboard.Name = "NameESP"
+                    billboard.Size = UDim2.new(0, 200, 0, 50)
+                    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+                    billboard.AlwaysOnTop = true
+                    billboard.Parent = head
+                    
+                    local nameLabel = Instance.new("TextLabel")
+                    nameLabel.Size = UDim2.new(1, 0, 1, 0)
+                    nameLabel.BackgroundTransparency = 1
+                    nameLabel.Text = player.Name
+                    nameLabel.TextColor3 = Color3.new(1, 1, 1)
+                    nameLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
+                    nameLabel.TextStrokeTransparency = 0
+                    nameLabel.Font = Enum.Font.GothamBold
+                    nameLabel.TextSize = 18
+                    nameLabel.TextScaled = true
+                    nameLabel.Parent = billboard
+                    
+                    NameESPCache[player] = billboard
+                end
+            end
+            
+            -- Aggiungi per tutti i giocatori
+            for _, player in ipairs(Players:GetPlayers()) do
+                addNameESP(player)
+            end
+            
+            -- Connessioni
+            Connections.PlayerAdded_NameESP = Players.PlayerAdded:Connect(addNameESP)
+            Connections.CharacterAdded_NameESP = Players.PlayerAdded:Connect(function(player)
+                player.CharacterAdded:Connect(function(char)
+                    task.wait(1) -- Attendi che il modello sia completamente caricato
+                    addNameESP(player)
+                end)
+            end)
+            
+            notify("Name ESP Enabled", "Player names visible")
+        else
+            cleanupConnection("PlayerAdded_NameESP")
+            cleanupConnection("CharacterAdded_NameESP")
+            for _, billboard in pairs(NameESPCache) do
+                if billboard then billboard:Destroy() end
+            end
+            NameESPCache = {}
+        end
+    end,
+})
+
+VisualTab:CreateToggle({
+    Name = "⏱️ Base Timer ESP",
+    CurrentValue = false,
+    Flag = "TimerESP",
+    Callback = function(Value)
+        if Value then
+            notify("Timer ESP Enabled", "Scanning for base timers...")
+        else
+            -- Cleanup code here
+        end
+    end,
+})
+
+-- Tab Misc (FIXED Anti-AFK)
+local MiscTab = Window:CreateTab("Misc", 13014546637)
+local UtilitySection = MiscTab:CreateSection("Utility Features")
+
+-- Anti-AFK FIXED
+MiscTab:CreateToggle({
+    Name = "🚫 Anti AFK",
+    CurrentValue = false,
+    Flag = "AntiAFK",
+    Callback = function(Value)
+        AntiAFKEnabled = Value
+        if Value then
+            notify("Anti-AFK Enabled", "Idle protection active")
+            
+            -- Usa un thread separato per evitare lag
+            task.spawn(function()
+                while AntiAFKEnabled do
+                    -- Simula movimento casuale
+                    local actions = {"W", "A", "S", "D"}
+                    local randomAction = actions[math.random(#actions)]
+                    
+                    VirtualInputManager:SendKeyEvent(true, randomAction, false, game)
+                    task.wait(0.1)
+                    VirtualInputManager:SendKeyEvent(false, randomAction, false, game)
+                    
+                    -- Attendi 30 secondi prima della prossima azione
+                    task.wait(30)
+                end
+            end)
+        else
+            notify("Anti-AFK Disabled", "Idle protection deactivated")
+        end
+    end,
+})
+
+-- Auto Collect Money
+MiscTab:CreateToggle({
+    Name = "💰 Auto Collect Money",
+    CurrentValue = false,
+    Flag = "AutoCollect",
+    Callback = function(Value)
+        AutoCollectEnabled = Value
+        if Value then
+            notify("Auto Collect Enabled", "Money collection activated")
+        else
+            -- Cleanup code here
+        end
+    end,
+})
+
+-- Tab Other
+local OtherTab = Window:CreateTab("Other", 13014546637)
+local BaseSection = OtherTab:CreateSection("Base Teleport System 🏰")
+
+-- Imposta Home Base
+OtherTab:CreateButton({
+    Name = "🏠 Set Home Base",
+    Callback = function()
+        local char = Player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            HomeBasePosition = char.HumanoidRootPart.CFrame
+            notify("Home Base Set", "Position saved successfully", 3)
+        else
+            notify("Error", "Character not found", 3)
+        end
+    end
+})
+
+-- Imposta Base Avversario
+OtherTab:CreateButton({
+    Name = "⚔️ Set Enemy Base",
+    Callback = function()
+        local char = Player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            EnemyBasePosition = char.HumanoidRootPart.CFrame
+            notify("Enemy Base Set", "Position saved successfully", 3)
+        else
+            notify("Error", "Character not found", 3)
+        end
+    end
+})
+
+-- Teletrasporto alla Home Base
+OtherTab:CreateButton({
+    Name = "🏠 Teleport to Home",
+    Callback = function()
+        if HomeBasePosition then
+            local char = Player.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.CFrame = HomeBasePosition
+                notify("Teleported Home", "Returned to home base", 3)
+            end
+        else
+            notify("Error", "Home base not set", 3)
+        end
+    end
+})
+
+-- Teletrasporto alla Base Avversaria
+OtherTab:CreateButton({
+    Name = "⚔️ Teleport to Enemy",
+    Callback = function()
+        if EnemyBasePosition then
+            local char = Player.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.CFrame = EnemyBasePosition
+                notify("Teleported Enemy", "Moved to enemy base", 3)
+            end
+        else
+            notify("Error", "Enemy base not set", 3)
+        end
+    end
+})
+
+-- Teletrasporto Automatico alla Base Avversaria
+OtherTab:CreateToggle({
+    Name = "🔁 Enemy Base Teleporter",
+    CurrentValue = false,
+    Flag = "BaseTeleporter",
+    Callback = function(Value)
+        BaseTeleportEnabled = Value
+        if Value then
+            Connections.BaseTeleport = RunService.Heartbeat:Connect(function()
+                if not BaseTeleportEnabled then return end
+                
+                local char = Player.Character
+                if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+                
+                local root = char.HumanoidRootPart
+                
+                -- Controlla se siamo alla base avversaria
+                if EnemyBasePosition and (root.Position - EnemyBasePosition.Position).Magnitude < 20 then
+                    -- Teletrasporta in alto
+                    root.CFrame = EnemyBasePosition + Vector3.new(0, 150, 0)
+                    
+                    -- Caduta controllata
+                    local fallTime = 0
+                    while char and root and root.Position.Y > EnemyBasePosition.Position.Y + 5 do
+                        task.wait(0.1)
+                        fallTime = fallTime + 0.1
+                        if fallTime > 5 then break end -- Timeout sicurezza
+                    end
+                end
+            end)
+            notify("Base Teleport Active", "Teleport to enemy base enabled", 3)
+        else
+            cleanupConnection("BaseTeleport")
+        end
+    end
+})
+
+-- Tab Server (FIXED)
+local ServerTab = Window:CreateTab("Server", 13014546637)
+local ServerSection = ServerTab:CreateSection("Server Controls 🔄")
+
+ServerTab:CreateButton({
+    Name = "🚪 Leave Server",
+    Callback = function()
+        Player:Kick("Left server via script")
+        notify("Server Left", "You've left the server", 3)
+    end
+})
+
+ServerTab:CreateButton({
+    Name = "🔄 Rejoin Server",
+    Callback = function()
+        TeleportService:Teleport(game.PlaceId, Player)
+        notify("Rejoining Server", "Attempting to rejoin the same server...", 3)
+    end
+})
+
+ServerTab:CreateButton({
+    Name = "🚀 Server Hop",
+    Callback = function()
+        local function findNewServer()
+            local servers = {}
+            local success, result = pcall(function()
+                return game:GetService("HttpService"):JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+            end)
+            
+            if success and result and result.data then
+                for _, server in ipairs(result.data) do
+                    if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                        table.insert(servers, server)
+                    end
+                end
+            end
+            return servers
+        end
+        
+        local servers = findNewServer()
+        if #servers > 0 then
+            local randomServer = servers[math.random(1, #servers)]
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, randomServer.id, Player)
+            notify("Server Hopping", "Joining a new server...", 3)
+        else
+            TeleportService:Teleport(game.PlaceId, Player)
+            notify("Server Hop", "No servers found, rejoining...", 3)
+        end
+    end
+})
+
+-- Loop principale
+Connections.MainLoop = RunService.Heartbeat:Connect(function()
+    local character = Player.Character
+    if not character then return end
+    
+    -- Speed Boost
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        if SpeedBoostActive then
+            humanoid.WalkSpeed = 90
+            humanoid.JumpPower = 80
+        else
+            humanoid.WalkSpeed = OriginalWalkSpeed
+            humanoid.JumpPower = OriginalJumpPower
+        end
+    end
+    
+    -- Auto Collect Money
+    if AutoCollectEnabled then
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj.Name:lower():find("money") or obj.Name:lower():find("coin") or obj.Name:lower():find("cash") then
+                if obj:IsA("BasePart") then
+                    local distance = (character.HumanoidRootPart.Position - obj.Position).Magnitude
+                    if distance < 100 then
+                        obj.CFrame = character.HumanoidRootPart.CFrame
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Flying Mode
+    updateFlying()
+end)
+
+-- Cleanup
+local function cleanup()
+    for _, connection in pairs(Connections) do
+        if connection then connection:Disconnect() end
+    end
+    
+    if StealGUI then StealGUI:Destroy() end
+    if SpeedBoostButton then SpeedBoostButton.Parent:Destroy() end
+    
+    for _, highlight in pairs(ESPCache) do
+        if highlight then highlight:Destroy() end
+    end
+    
+    for _, billboard in pairs(NameESPCache) do
+        if billboard then billboard:Destroy() end
+    end
+    
+    if FastStealConnection then FastStealConnection:Disconnect() end
+    stopKillAura()
+    stopFlying()
+    
+    local character = Player.Character
+    if character then
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = true
+            end
+        end
+        
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = OriginalWalkSpeed
+            humanoid.JumpPower = OriginalJumpPower
+        end
+    end
+end
+
+-- Pulsante Unload
+MiscTab:CreateButton({
+    Name = "🔴 Unload Interface",
+    Callback = function()
+        cleanup()
+        Rayfield:Destroy()
+    end,
+})
+
+-- Inizializzazione
+Connections.CharacterAdded = Player.CharacterAdded:Connect(function(character)
+    task.wait(2)
+    storeSpawnPosition()
+    
+    -- Salva valori movimento originali
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        OriginalWalkSpeed = humanoid.WalkSpeed
+        OriginalJumpPower = humanoid.JumpPower
+    end
+end)
+
+-- Salva valori movimento iniziali
+if Player.Character then
+    local humanoid = Player.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        OriginalWalkSpeed = humanoid.WalkSpeed
+        OriginalJumpPower = humanoid.JumpPower
+    end
+end
+
+notify("Admin Tools Pro Loaded", "All features ultra-optimized and ready! 🚀", 5)
