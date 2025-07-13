@@ -1,0 +1,199 @@
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+local active = false
+local cancelRequested = false
+local currentThread = nil
+
+-- GUI
+local screenGui = Instance.new("ScreenGui", PlayerGui)
+screenGui.Name = "TeleportButtonGUI"
+screenGui.ResetOnSpawn = false
+
+local button = Instance.new("TextButton")
+button.Parent = screenGui
+button.Size = UDim2.new(0, 120, 0, 40)
+button.Position = UDim2.new(0.5, -60, 0.005, 0)
+button.BackgroundTransparency = 0.6
+button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+button.Text = "Up"
+button.TextColor3 = Color3.new(1, 1, 1)
+button.Font = Enum.Font.GothamBold
+button.TextSize = 20
+button.BorderSizePixel = 0
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = button
+
+-- Step-by-step XZ teleport
+local function stepByStepMoveToXZ(root, targetPos, onComplete)
+	local stepSize = 1
+	local delayPerStep = 0.02
+
+	while true do
+		if cancelRequested then
+			print("❌ Cancelled")
+			if onComplete then onComplete("cancelled") end
+			return
+		end
+
+		local currentPos = root.Position
+		local currentXZ = Vector3.new(currentPos.X, 0, currentPos.Z)
+		local targetXZ = Vector3.new(targetPos.X, 0, targetPos.Z)
+		local direction = (targetXZ - currentXZ)
+
+		if direction.Magnitude < stepSize then
+			root.CFrame = CFrame.new(Vector3.new(targetPos.X, currentPos.Y, targetPos.Z))
+			if onComplete then onComplete("done") end
+			break
+		end
+
+		local step = direction.Unit * stepSize
+		local newPos = currentPos + Vector3.new(step.X, 0, step.Z)
+		root.CFrame = CFrame.new(newPos)
+		task.wait(delayPerStep)
+	end
+end
+
+-- Main function
+local function teleportAndCheck()
+	if active then
+		-- On second press — request cancel
+		cancelRequested = true
+		button.Text = "🔄 Cancelling..."
+
+		local character = player.Character or player.CharacterAdded:Wait()
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if root then
+			if root.Position.Y >= 173 then
+				print("🔻 Teleporting 100 studs down (cancel)")
+				root.CFrame = root.CFrame - Vector3.new(0, 100, 0)
+			else
+				print("🛑 Stopped without teleport")
+			end
+		end
+
+		return
+	end
+
+	active = true
+	cancelRequested = false
+	button.Text = "⛔ Cancel"
+
+	local character = player.Character or player.CharacterAdded:Wait()
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		warn("❌ HumanoidRootPart not found")
+		button.Text = "🔍 Check"
+		active = false
+		return
+	end
+
+	print("🔼 Teleporting 160 studs up")
+	root.CFrame = root.CFrame + Vector3.new(0, 160, 0)
+
+	task.wait(1.2)
+
+	local plots = workspace:FindFirstChild("Plots")
+	if not plots then
+		warn("❌ workspace.Plots not found")
+		button.Text = "🔍 Check"
+		active = false
+		return
+	end
+
+	local foundPlot = false
+
+	for _, plot in pairs(plots:GetChildren()) do
+		local sign
+		local success = pcall(function()
+			sign = plot:FindFirstChild("PlotSign")
+				and plot.PlotSign:FindFirstChild("SurfaceGui")
+				and plot.PlotSign.SurfaceGui:FindFirstChild("Frame")
+				and plot.PlotSign.SurfaceGui.Frame:FindFirstChild("TextLabel")
+		end)
+
+		if sign and typeof(sign.Text) == "string" then
+			local signText = (sign.Text or ""):lower():gsub("^%s+", ""):gsub("%s+$", "")
+			local expected1 = (player.DisplayName .. "'s base"):lower()
+			local expected2 = (player.Name .. "'s base"):lower()
+
+			if signText == expected1 or signText == expected2 then
+				print("✅ Your Plot found:", plot.Name)
+				foundPlot = true
+
+				local highlight = Instance.new("Highlight")
+				highlight.Parent = plot
+				highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+				highlight.FillColor = Color3.fromRGB(255, 255, 0)
+				highlight.OutlineColor = Color3.new(1, 1, 1)
+				highlight.FillTransparency = 0.5
+				highlight.OutlineTransparency = 0
+
+				task.delay(5, function()
+					if highlight then highlight:Destroy() end
+				end)
+
+				local decorations = plot:FindFirstChild("Decorations")
+				if not decorations then
+					warn("❌ Decorations not found in Plot:", plot.Name)
+					button.Text = "🔍 Check"
+					active = false
+					return
+				end
+
+				local children = decorations:GetChildren()
+				local target = children[11]
+				if not target then
+					warn("❌ 11th object in Decorations missing:", plot.Name)
+					button.Text = "🔍 Check"
+					active = false
+					return
+				end
+
+				local label
+				local ok = pcall(function()
+					label = target:FindFirstChild("SurfaceGui")
+						and target.SurfaceGui:FindFirstChild("Frame")
+						and target.SurfaceGui.Frame:FindFirstChild("TextLabel")
+				end)
+
+				if label and label.Text == "COLLECT ZONE" then
+					print("✅ COLLECT ZONE found. Starting move")
+
+					local targetXZ = Vector3.new(target.Position.X, root.Position.Y, target.Position.Z)
+
+					currentThread = task.spawn(function()
+						stepByStepMoveToXZ(root, targetXZ, function(status)
+							if status == "cancelled" then
+								print("🔁 Cancelled — doing nothing")
+							else
+								print("⬇️ Reached target. Teleporting 160 down")
+								root.CFrame = root.CFrame - Vector3.new(0, 160, 0)
+							end
+							button.Text = "🔍 Check"
+							active = false
+							cancelRequested = false
+						end)
+					end)
+
+					return
+				else
+					print("⛔ 'COLLECT ZONE' not found, got:", label and label.Text or "nil")
+				end
+			end
+		end
+	end
+
+	if not foundPlot then
+		warn("❌ No Plot found with matching player name")
+	end
+
+	button.Text = "🔍 Check"
+	active = false
+	cancelRequested = false
+end
+
+button.MouseButton1Click:Connect(teleportAndCheck)
