@@ -1,593 +1,472 @@
-local GUI = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/basedgooner/SimpleLibrary/refs/heads/main/Luno%20Library"
-))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local Window = Rayfield:CreateWindow({
+    Name = "Steal a brainrot | by 三眼怪",
+    LoadingTitle = "Nash Hub",
+    LoadingSubtitle = "by 三眼怪",
+    ShowText = "Rayfield",
+    Theme = "Default",
+    ToggleUIKeybind = Enum.KeyCode.K,
+    ConfigurationSaving = {
+        Enabled = true,
+        FileName = "Nash Hub"
+    }
+})
 
-local Players           = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService  = game:GetService("UserInputService")
-local RunService        = game:GetService("RunService")
-local PathfindingService = game:GetService("PathfindingService")
-
-local player     = Players.LocalPlayer
-local buyRemote  = ReplicatedStorage.Packages.Net["RF/CoinsShopService/RequestBuy"]
-
-local AnimalsModule = require(ReplicatedStorage.Datas.Animals)
-local TraitsModule = require(ReplicatedStorage.Datas.Traits)
-local GameModule = require(ReplicatedStorage.Shared.Game)
-
-require(ReplicatedStorage.Controllers:WaitForChild("CharacterController"))
-
-local charController = require(ReplicatedStorage.Controllers:WaitForChild("CharacterController"))
-charController.update = function() end
-
-local PlotController
-pcall(function()
-    PlotController = require(ReplicatedStorage.Controllers:WaitForChild("PlotController", 2))
-end)
-
-local window = GUI:CreateWindow("Steal A Brainrot")
-local page   = window:CreatePage("Movement")
-local visualsPage = window:CreatePage("Visuals")
-local shopPage = window:CreatePage("Shop")
-
-local checking       = false
-local walkSpeed      = 40
-local keys           = {}
-local charConn       = nil
-local infiniteJumpEnabled = false
-local bypassMode     = "None"
-local pathfindingEnabled = false
-local pathfindingCoroutine = nil
-local notifiedThresholds = {}
-
-do
-    local mt, old = getrawmetatable(game), nil
-    setreadonly(mt, false)
-    old = mt.__newindex
-
-    mt.__newindex = newcclosure(function(t, k, v)
-        if checking
-           and not checkcaller()
-           and k == "Health"
-           and v == 0
-           and typeof(t) == "Instance"
-           and t:IsA("Humanoid")
-           and t.Parent == player.Character then
-            return
-        end
-        return old(t, k, v)
-    end)
-
-    setreadonly(mt, true)
-end
-
-UserInputService.InputBegan:Connect(function(inp, g)
-    if not g and inp.UserInputType == Enum.UserInputType.Keyboard then
-        keys[inp.KeyCode] = true
-    end
-end)
-UserInputService.InputEnded:Connect(function(inp)
-    if inp.UserInputType == Enum.UserInputType.Keyboard then
-        keys[inp.KeyCode] = false
-    end
-end)
-
-UserInputService.JumpRequest:Connect(function()
-    if infiniteJumpEnabled and player.Character then
-        local hum = player.Character:FindFirstChildOfClass("Humanoid")
-        if hum and hum:GetState() ~= Enum.HumanoidStateType.Seated then
-            hum:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end
-end)
-
-local function spoofItem(itemName)
-    local backpack = player:FindFirstChild("Backpack")
-    local char = player.Character
-    if not (backpack and char) then return end
-
-    local item = backpack:FindFirstChild(itemName) or char:FindFirstChild(itemName)
-    if not item then
-        pcall(function() return buyRemote:InvokeServer(itemName) end)
-        item = backpack:WaitForChild(itemName, 2)
-    end
-    if not item then return end
-
-    item.Parent = char
-    task.wait(0.15)
-    if item:IsA("Tool") then
-        for i = 1, 2 do
-            pcall(function() item:Activate() end)
-            task.wait(0.1)
-        end
-    end
-    task.wait(0.15)
-    item.Parent = backpack
-end
-
-local function findAndEquipItem(itemName, activate)
-    local backpack = player:FindFirstChild("Backpack")
-    local char = player.Character
-    if not (backpack and char) then return false end
-
-    local item = backpack:FindFirstChild(itemName) or char:FindFirstChild(itemName)
-    if not item then
-        window:Notify("Purchasing "..itemName, "info")
-        pcall(function() return buyRemote:InvokeServer(itemName) end)
-        task.wait(0.5)
-        item = backpack:WaitForChild(itemName, 0.2)
-    end
-
-    if not item then
-        window:Notify(itemName.." not found after purchase attempt.", "warning")
-        return false
-    end
-
-    if item.Parent ~= char then
-        item.Parent = char
-        task.wait(0.1)
-    end
-    if activate and item:IsA("Tool") then
-        pcall(function() item:Activate() end)
-    end
-    return true
-end
-
-local function unequipItem(itemName)
-    local backpack = player:FindFirstChild("Backpack")
-    local char = player.Character
-    if not (backpack and char) then return end
-
-    local item = char:FindFirstChild(itemName)
-    if item then
-        item.Parent = backpack
-    end
-end
-
-local function onCharacterAdded()
-    if bypassMode == "Bypass Speed" then
-        task.defer(function() spoofItem("Speed Coil") end)
-    elseif bypassMode == "Bypass Speed MAX" then
-        task.defer(function() spoofItem("Invisibility Cloak") end)
-    end
-end
-
-local function toggleCharacterController(state)
-    local controller = require(ReplicatedStorage.Controllers:WaitForChild("CharacterController"))
-    if state then
-        controller.update = function() end
-    else
-        controller.update = nil
-        require(ReplicatedStorage.Controllers:WaitForChild("CharacterController")) 
-    end
-end
-
-page:CreateDropdown("Speed Bypass Mode", {"None", "Bypass Speed", "Bypass Speed MAX"}, "None", function(value)
-    bypassMode = value
-    if value == "Bypass Speed" then
-        spoofItem("Speed Coil")
-    elseif value == "Bypass Speed MAX" then
-        spoofItem("Invisibility Cloak")
-    end
-    if charConn then charConn:Disconnect() end
-    charConn = player.CharacterAdded:Connect(onCharacterAdded)
-    if player.Character then onCharacterAdded() end
-end)
-
-page:CreateToggle("CFrame Speed Bypass", false, function(state)
-    checking = state
-    if checking then
-        if charConn then charConn:Disconnect() end
-        charConn = player.CharacterAdded:Connect(onCharacterAdded)
-        if player.Character then onCharacterAdded() end
-    else
-        if charConn then charConn:Disconnect(); charConn = nil end
-    end
-end)
-
-page:CreateSlider("Walk Speed", 25, 75, walkSpeed, function(v)
-    walkSpeed = v
-end)
-
-page:CreateToggle("Infinite Jump", false, function(state)
-    infiniteJumpEnabled = state
-    toggleCharacterController(state)
-end)
-
-local espEnabled = false
-local isPetScanRunning = false
-local highestGenAnimal = nil
-local currentTargetPlot = nil
-local transparencyConnections = {}
-
-local INTERVAL = 0.25
-local ALL_ANIMAL_NAMES = {
-    ["Noobini Pizzanini"] = true, ["Lirilì Larilà"] = true, ["Tim Cheese"] = true, ["Fluriflura"] = true, ["Svinina Bombardino"] = true, ["Talpa Di Fero"] = true,
-    ["Pipi Kiwi"] = true, ["Trippi Troppi"] = true, ["Tung Tung Tung Sahur"] = true, ["Gangster Footera"] = true, ["Boneca Ambalabu"] = true, ["Ta Ta Ta Ta Sahur"] = true,
-    ["Tric Trac Baraboom"] = true, ["Bandito Bobritto"] = true, ["Cacto Hipopotamo"] = true, ["Cappuccino Assassino"] = true, ["Brr Brr Patapim"] = true,
-    ["Trulimero Trulicina"] = true, ["Bananita Dolphinita"] = true, ["Brri Brri Bicus Dicus Bombicus"] = true, ["Bambini Crostini"] = true, ["Perochello Lemonchello"] = true,
-    ["Burbaloni Loliloli"] = true, ["Chimpanzini Bananini"] = true, ["Ballerina Cappuccina"] = true, ["Chef Crabracadabra"] = true, ["Glorbo Fruttodrillo"] = true,
-    ["Blueberrinni Octopusini"] = true, ["Lionel Cactuseli"] = true, ["Pandaccini Bananini"] = true, ["Frigo Camelo"] = true, ["Orangutini Ananassini"] = true,
-    ["Bombardiro Crocodilo"] = true, ["Bombombini Gusini"] = true, ["Rhino Toasterino"] = true, ["Cavallo Virtuoso"] = true, ["Spioniro Golubiro"] = true,
-    ["Zibra Zubra Zibralini"] = true, ["Tigrilini Watermelini"] = true, ["Cocofanto Elefanto"] = true, ["Tralalero Tralala"] = true, ["Odin Din Din Dun"] = true,
-    ["Girafa Celestre"] = true, ["Gattatino Nyanino"] = true, ["Trenostruzzo Turbo 3000"] = true, ["Matteo"] = true, ["Tigroligre Frutonni"] = true, ["Orcalero Orcala"] = true,
-    ["Statutino Libertino"] = true, ["Gattatino Neonino"] = true, ["La Vacca Saturno Saturnita"] = true, ["Los Tralaleritos"] = true, ["Graipuss Medussi"] = true,
-    ["La Grande Combinasion"] = true, ["Chimpanzini Spiderini"] = true, ["Garama and Madundung"] = true, ["Torrtuginni Dragonfrutini"] = true, ["Las Tralaleritas"] = true,
-    ["Pot Hotspot"] = true, ["Mythic Lucky Block"] = true, ["Brainrot God Lucky Block"] = true, ["Secret Lucky Block"] = true,
-}
-
-local function getPlotFromPosition(pos)
-    if typeof(pos) ~= "Vector3" then
-        if pos:IsA("Model") then
-            local root = pos:FindFirstChild("RootPart") or pos:FindFirstChildWhichIsA("BasePart")
-            if not root then return nil end
-            pos = root.Position
-        elseif pos:IsA("BasePart") then
-            pos = pos.Position
-        else
-            return nil
-        end
-    end
-
-    local plotsFolder = workspace:FindFirstChild("Plots")
-    if not plotsFolder then return nil end
-
-    local closestPlot = nil
-    local shortestDist = math.huge
-
-    for _, plot in ipairs(plotsFolder:GetChildren()) do
-        local podiums = plot:FindFirstChild("AnimalPodiums")
-        if podiums then
-            for _, podium in ipairs(podiums:GetChildren()) do
-                local base = podium:FindFirstChild("Base")
-                local spawn = base and base:FindFirstChild("Spawn")
-                if spawn and spawn:IsA("BasePart") then
-                    local dist = (spawn.Position - pos).Magnitude
-                    if dist < shortestDist then
-                        shortestDist = dist
-                        closestPlot = plot
-                    end
-                end
-            end
-        end
-    end
-    return closestPlot
-end
-
-local function getMyPlot()
-    local ok, result = pcall(function() return PlotController:GetMyPlot() end)
-    if not ok or not result then return nil end
-    local plotModel = result and result.PlotModel
-    return typeof(plotModel) == "Instance" and plotModel or nil
-end
-
-local function isInEnemyPlot(model)
-    local myPlot = getMyPlot()
-    if not myPlot then return true end
-    return not myPlot:IsAncestorOf(model)
-end
-
-local function isBasePet(m)
-    return m:IsA("Model") and ALL_ANIMAL_NAMES[m.Name]
-end
-
-local function clearPetESP()
-    for _, m in ipairs(workspace:GetChildren()) do
-        if m:FindFirstChild("PetESP") then m.PetESP:Destroy() end
-        if m:FindFirstChild("PetESP_Label") then m.PetESP_Label:Destroy() end
-    end
-end
-
-local function startRainbow(obj, prop)
-    local cycleTime = 4
-    task.spawn(function()
-        while obj and obj.Parent do
-            local h = (tick() % cycleTime) / cycleTime
-            obj[prop] = Color3.fromHSV(h, 1, 1)
-            RunService.Heartbeat:Wait()
-        end
-    end)
-end
-
-local function formatNumber(n)
-    return tostring(n):reverse():gsub('%d%d%d', '%1,'):reverse():gsub('^,', '')
-end
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local player = Players.LocalPlayer
 
-local AnimalsModule  = require(ReplicatedStorage.Datas.Animals)
-local TraitsModule   = require(ReplicatedStorage.Datas.Traits)
-local MutationsModule = require(ReplicatedStorage.Datas.Mutations)
+-- 等待角色完全加載
+if not game:IsLoaded() then game.Loaded:Wait() end
+repeat task.wait() until player.Character and player.Character:FindFirstChild("Humanoid")
 
-local function getTraitMultiplier(model)
-	local traitSource = model:FindFirstChild("Instance") or model
-	local traitJson = traitSource:GetAttribute("Traits")
-	if not traitJson then return 1 end
+local CombatTab = Window:CreateTab("戰鬥", 0)
 
-	local success, traitList = pcall(function()
-		return HttpService:JSONDecode(traitJson)
-	end)
-	if not success or typeof(traitList) ~= "table" then return 1 end
+local KillAuraActive = false
+local KillAuraConnection = nil
+local KillAuraDistance = 20
+local toolName = "Tung Bat"
 
-	local mult = 1
-	for _, traitName in ipairs(traitList) do
-		local trait = TraitsModule[traitName]
-		if trait and trait.MultiplierModifier then
-			mult *= trait.MultiplierModifier
-		end
-	end
-	return mult
-end
+local function startKillAura()
+    if KillAuraActive then return end
+    KillAuraActive = true
 
-local function getMutationMultiplier(model)
-	local mutation = model:GetAttribute("Mutation")
-	if not mutation then return 1 end
+    KillAuraConnection = RunService.Heartbeat:Connect(function()
+        pcall(function()
+            local char = player.Character
+            if not char or not char:FindFirstChild("HumanoidRootPart") then return end
 
-	local data = MutationsModule[mutation]
-	if data and data.MultiplierModifier then
-		return data.MultiplierModifier
-	end
-	return 1
-end
+            local tool = player.Backpack:FindFirstChild(toolName) or char:FindFirstChild(toolName)
+            if not tool then return end
 
-local function getFinalGeneration(model)
-	local animalData = AnimalsModule[model.Name]
-	if not animalData then return 0 end
-
-	local baseGen = animalData.Generation or 0
-	local traitMult = getTraitMultiplier(model)
-	local mutationMult = getMutationMultiplier(model)
-	local total = baseGen * traitMult * mutationMult
-
-	return math.round(total), baseGen, traitMult, mutationMult
-end
-
-
-local function attachPetESP(m, g)
-    local root = m:FindFirstChild("RootPart") or m:FindFirstChildWhichIsA("BasePart")
-    if not root then return end
-
-    local hl = Instance.new('Highlight')
-    hl.Name = "PetESP"
-    hl.Adornee = m
-    hl.OutlineColor = Color3.new(0, 0, 0)
-    hl.FillTransparency = 0.25
-    hl.OutlineTransparency = 0
-    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    hl.Parent = m
-    startRainbow(hl, "FillColor")
-    startRainbow(hl, "OutlineColor")
-
-    local gui = Instance.new('BillboardGui')
-    gui.Name = "PetESP_Label"
-    gui.Adornee = root
-    gui.AlwaysOnTop = true
-    gui.Size = UDim2.new(0, 400, 0, 80)
-    gui.StudsOffset = Vector3.new(0, 6.5, 0)
-    gui.Parent = m
-
-    local n = Instance.new('TextLabel')
-    n.Size = UDim2.new(1, 0, 0.5, 0)
-    n.Position = UDim2.new(0.5, 0, 0.35, 0)
-    n.AnchorPoint = Vector2.new(0.5, 0.5)
-    n.BackgroundTransparency = 1
-    n.Font = Enum.Font.GothamBlack
-    n.TextSize = 22
-    n.Text = m.Name:upper()
-    n.TextXAlignment = Enum.TextXAlignment.Center
-    n.Parent = gui
-
-    local ns = Instance.new('UIStroke')
-    ns.Thickness = 4.5
-    ns.Color = Color3.new(0, 0, 0)
-    ns.Parent = n
-
-    local nso = Instance.new('UIStroke')
-    nso.Thickness = 5.5
-    nso.Color = Color3.new(1, 1, 1)
-    nso.Parent = n
-
-    local gL = Instance.new('TextLabel')
-    gL.Size = UDim2.new(1, 0, 0.5, 0)
-    gL.Position = UDim2.new(0.5, 0, 0.75, 0)
-    gL.AnchorPoint = Vector2.new(0.5, 0.5)
-    gL.BackgroundTransparency = 1
-    gL.Font = Enum.Font.GothamBlack
-    gL.TextSize = 32
-    gL.Text = '$' .. formatNumber(g) .. '/s'
-    gL.TextXAlignment = Enum.TextXAlignment.Center
-    gL.Parent = gui
-
-    local gs = Instance.new('UIStroke')
-    gs.Thickness = 6
-    gs.Color = Color3.new(0, 0, 0)
-    gs.Parent = gL
-
-    local gso = Instance.new('UIStroke')
-    gso.Thickness = 7
-    gso.Color = Color3.new(1, 1, 1)
-    gso.Parent = gL
-
-    startRainbow(n, 'TextColor3')
-    startRainbow(gL, 'TextColor3')
-end
-
-local function stopPlotMonitoring()
-    for _, conn in ipairs(transparencyConnections) do conn:Disconnect() end
-    table.clear(transparencyConnections)
-    table.clear(notifiedThresholds)
-    currentTargetPlot = nil
-end
-
-local function setupPlotMonitoring(plotModel)
-    stopPlotMonitoring()
-    currentTargetPlot = plotModel
-    if not plotModel then return end
-
-    local timeLabel
-    pcall(function()
-        timeLabel = plotModel:WaitForChild("Purchases", 2):WaitForChild("PlotBlock", 2):WaitForChild("Main", 2):WaitForChild("BillboardGui", 2):WaitForChild("RemainingTime", 2)
-    end)
-
-    if timeLabel then
-        local lastText = ""
-        local conn = RunService.Heartbeat:Connect(function()
-            if not timeLabel or not timeLabel.Parent then return end
-            local current = timeLabel.Text
-            if current ~= lastText then
-                lastText = current
-                local num = tonumber(current:match("(%d+)"))
-                if num then
-                    for t = 200, 10, -10 do
-                        if num <= t and not notifiedThresholds[t] then
-                            notifiedThresholds[t] = true
-                            break
-                        end
+            local nearbyPlayers = {}
+            for _, otherPlayer in pairs(Players:GetPlayers()) do
+                if otherPlayer ~= player and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    local dist = (otherPlayer.Character.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+                    if dist <= KillAuraDistance then
+                        table.insert(nearbyPlayers, {player = otherPlayer, distance = dist})
                     end
                 end
             end
+
+            table.sort(nearbyPlayers, function(a, b) return a.distance < b.distance end)
+
+            for i = 1, math.min(#nearbyPlayers, 3) do
+                local target = nearbyPlayers[i].player
+                local targetChar = target.Character
+                local targetHRP = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+                if targetHRP then
+                    local dir = (targetHRP.Position - char.HumanoidRootPart.Position).Unit
+                    local lookDir = Vector3.new(dir.X, 0, dir.Z)
+                    char.HumanoidRootPart.CFrame = CFrame.lookAt(char.HumanoidRootPart.Position, char.HumanoidRootPart.Position + lookDir)
+
+                    if tool.Parent == player.Backpack then
+                        char.Humanoid:EquipTool(tool)
+                    end
+
+                    if tool:FindFirstChild("Handle") then
+                        tool:Activate()
+                    end
+
+                    task.wait(0.05)
+                end
+            end
         end)
-        table.insert(transparencyConnections, conn)
-    end
+    end)
 end
 
-local function pathfindLoop()
-    while pathfindingEnabled and task.wait(1) do
-        local char = player.Character
-        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
-        if not (humanoid and hrp and highestGenAnimal) then continue end
+local function stopKillAura()
+    if KillAuraConnection then
+        KillAuraConnection:Disconnect()
+        KillAuraConnection = nil
+    end
+    KillAuraActive = false
+end
 
-        local targetRoot = highestGenAnimal:FindFirstChild("RootPart") or highestGenAnimal:FindFirstChildWhichIsA("BasePart")
-        if not targetRoot then continue end
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    if KillAuraActive then
+        startKillAura()
+    end
+end)
 
-        local path = PathfindingService:CreatePath()
-        local destination = targetRoot.Position - (targetRoot.CFrame.LookVector * 8)
-        
-        local success, err = pcall(function() path:ComputeAsync(hrp.Position, destination) end)
-        if not success or path.Status ~= Enum.PathStatus.Success then continue end
+CombatTab:CreateToggle({
+    Name = "自動攻擊 (KillAura)",
+    CurrentValue = false,
+    Callback = function(value)
+        if value then
+            startKillAura()
+        else
+            stopKillAura()
+        end
+    end,
+})
 
-        local waypoints = path:GetWaypoints()
-        for _, waypoint in ipairs(waypoints) do
-            if not pathfindingEnabled then break end
-            humanoid:MoveTo(waypoint.Position)
-            humanoid.MoveToFinished:Wait(2)
+CombatTab:CreateSlider({
+    Name = "攻擊距離",
+    Range = {1, 100},
+    Increment = 1,
+    Suffix = " studs",
+    CurrentValue = KillAuraDistance,
+    Callback = function(value)
+        KillAuraDistance = value
+    end,
+})
+
+local MainTab = Window:CreateTab("玩家", 0)
+
+-- WalkSpeed 功能
+local HumanModCons = {}
+
+local function setWalkSpeed(speed)
+    local Char = player.Character or workspace:FindFirstChild(player.Name)
+    local Human = Char and Char:FindFirstChildWhichIsA("Humanoid")
+
+    local function WalkSpeedChange()
+        if Char and Human then
+            Human.WalkSpeed = speed
         end
     end
+
+    WalkSpeedChange()
+
+    if HumanModCons.wsLoop then HumanModCons.wsLoop:Disconnect() end
+    if HumanModCons.wsCA then HumanModCons.wsCA:Disconnect() end
+
+    if Human then
+        HumanModCons.wsLoop = Human:GetPropertyChangedSignal("WalkSpeed"):Connect(WalkSpeedChange)
+    end
+
+    HumanModCons.wsCA = player.CharacterAdded:Connect(function(nChar)
+        Char = nChar
+        Human = nChar:WaitForChild("Humanoid")
+        WalkSpeedChange()
+        if HumanModCons.wsLoop then HumanModCons.wsLoop:Disconnect() end
+        HumanModCons.wsLoop = Human:GetPropertyChangedSignal("WalkSpeed"):Connect(WalkSpeedChange)
+    end)
 end
 
-local function runPetScanLoop()
-    if isPetScanRunning then return end
-    isPetScanRunning = true
+local function resetWalkSpeed()
+    local Char = player.Character or workspace:FindFirstChild(player.Name)
+    local Human = Char and Char:FindFirstChildWhichIsA("Humanoid")
+    if Human then
+        Human.WalkSpeed = 16
+    end
+    if HumanModCons.wsLoop then HumanModCons.wsLoop:Disconnect() end
+    if HumanModCons.wsCA then HumanModCons.wsCA:Disconnect() end
+end
 
-    while espEnabled or pathfindingEnabled do
-        local highest, bestGen = nil, -1
-        for _, m in ipairs(workspace:GetChildren()) do
-            if isBasePet(m) and isInEnemyPlot(m) then
-                local g = getFinalGeneration(m)
-                if g > bestGen then
-	                bestGen = g
-	                highest = m
+MainTab:CreateToggle({
+    Name = "速度MAX",
+    CurrentValue = false,
+    Callback = function(Value)
+        if Value then
+            setWalkSpeed(50)
+        else
+            resetWalkSpeed()
+        end
+    end,
+})
+
+-- JumpHeight 功能
+local function setJumpHeight(height)
+    local Char = player.Character or workspace:FindFirstChild(player.Name)
+    local Human = Char and Char:FindFirstChildWhichIsA("Humanoid")
+
+    local function JumpHeightChange()
+        if Char and Human then
+            Human.JumpHeight = height
+        end
+    end
+
+    JumpHeightChange()
+
+    if HumanModCons.jhLoop then HumanModCons.jhLoop:Disconnect() end
+    if HumanModCons.jhCA then HumanModCons.jhCA:Disconnect() end
+
+    if Human then
+        HumanModCons.jhLoop = Human:GetPropertyChangedSignal("JumpHeight"):Connect(JumpHeightChange)
+    end
+
+    HumanModCons.jhCA = player.CharacterAdded:Connect(function(nChar)
+        Char = nChar
+        Human = nChar:WaitForChild("Humanoid")
+        JumpHeightChange()
+        if HumanModCons.jhLoop then HumanModCons.jhLoop:Disconnect() end
+        HumanModCons.jhLoop = Human:GetPropertyChangedSignal("JumpHeight"):Connect(JumpHeightChange)
+    end)
+end
+
+local function resetJumpHeight()
+    local Char = player.Character or workspace:FindFirstChild(player.Name)
+    local Human = Char and Char:FindFirstChildWhichIsA("Humanoid")
+    if Human then
+        Human.JumpHeight = 7.2 -- 預設值
+    end
+    if HumanModCons.jhLoop then HumanModCons.jhLoop:Disconnect() end
+    if HumanModCons.jhCA then HumanModCons.jhCA:Disconnect() end
+end
+
+MainTab:CreateToggle({
+    Name = "跳躍MAX",
+    CurrentValue = false,
+    Callback = function(Value)
+        if Value then
+            setJumpHeight(14.4) -- 加倍跳躍
+        else
+            resetJumpHeight()
+        end
+    end,
+})
+
+-- 低重力功能
+local lowGravity = 150 -- 低重力數值
+local BodyForceName = "LowGravityForce"
+
+local function applyLowGravity()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local hrp = character:WaitForChild("HumanoidRootPart")
+
+    if hrp:FindFirstChild(BodyForceName) then
+        hrp[BodyForceName]:Destroy()
+    end
+
+    local bodyForce = Instance.new("BodyForce")
+    bodyForce.Name = BodyForceName
+
+    local gravityForce = Vector3.new(0, workspace.Gravity * hrp:GetMass(), 0)
+    local gravityScale = lowGravity / workspace.Gravity
+    bodyForce.Force = gravityForce * (1 - gravityScale)
+    bodyForce.Parent = hrp
+end
+
+local function resetGravity()
+    local character = player.Character or player.CharacterAdded:Wait()
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    if hrp and hrp:FindFirstChild(BodyForceName) then
+        hrp[BodyForceName]:Destroy()
+    end
+end
+
+MainTab:CreateToggle({
+    Name = "低重力",
+    CurrentValue = false,
+    Callback = function(Value)
+        if Value then
+            applyLowGravity()
+            -- 修正判斷是否已連接 CharacterAdded 事件
+            if not player.CharacterAdded.ConnectApplied then
+                player.CharacterAdded:Connect(function()
+                    wait(1)
+                    applyLowGravity()
+                end)
+                player.CharacterAdded.ConnectApplied = true
+            end
+        else
+            resetGravity()
+        end
+    end,
+})
+
+-- 無限跳功能
+local jumpConnection = nil
+local function setInfiniteJump(enabled)
+    if enabled then
+        jumpConnection = UserInputService.JumpRequest:Connect(function()
+            local Char = player.Character
+            local Humanoid = Char and Char:FindFirstChildOfClass("Humanoid")
+            if Humanoid then
+                Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+    else
+        if jumpConnection then jumpConnection:Disconnect() jumpConnection = nil end
+    end
+end
+
+MainTab:CreateToggle({
+    Name = "無限跳躍",
+    CurrentValue = false,
+    Callback = function(Value)
+        setInfiniteJump(Value)
+    end,
+})
+
+-- 無敵模式功能
+local godModeToggle = false
+local godConnections = {}
+local godHeartbeat
+
+local function enableGodMode()
+    local function apply(character)
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if not humanoid then return end
+
+        humanoid.BreakJointsOnDeath = false
+        humanoid.RequiresNeck = false
+
+        for _, conn in ipairs(getconnections(humanoid.Died)) do
+            conn:Disable()
+            table.insert(godConnections, conn)
+        end
+
+        table.insert(godConnections, humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+            if humanoid.Health < humanoid.MaxHealth then
+                humanoid.Health = humanoid.MaxHealth
+            end
+        end))
+
+        godHeartbeat = RunService.Heartbeat:Connect(function()
+            if humanoid and humanoid.Health < humanoid.MaxHealth then
+                humanoid.Health = humanoid.MaxHealth
+            end
+        end)
+    end
+
+    apply(player.Character or player.CharacterAdded:Wait())
+    table.insert(godConnections, player.CharacterAdded:Connect(function(char)
+        task.wait(0.5)
+        apply(char)
+    end))
+end
+
+local function disableGodMode()
+    for _, conn in ipairs(godConnections) do
+        if typeof(conn) == "RBXScriptConnection" then conn:Disconnect() end
+    end
+    godConnections = {}
+
+    if godHeartbeat then godHeartbeat:Disconnect() godHeartbeat = nil end
+
+    local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.BreakJointsOnDeath = true
+        humanoid.RequiresNeck = true
+    end
+end
+
+MainTab:CreateToggle({
+    Name = "無敵模式",
+    CurrentValue = false,
+    Callback = function(Value)
+        if Value then
+            enableGodMode()
+        else
+            disableGodMode()
+        end
+    end,
+})
+
+-- 視覺 Tab (ESP)
+local VisionTab = Window:CreateTab("視覺", 0)
+
+local playerESPEnabled = false
+local playerESPConnections = {}
+local playerESPList = {}
+local espColor = Color3.fromRGB(0, 255, 0)
+
+local function clearPlayerESP()
+    for char, _ in pairs(playerESPList) do
+        if char and char.Parent then
+            local hl = char:FindFirstChild("ESP_Highlight")
+            if hl then hl:Destroy() end
+
+            for _, part in ipairs(char:GetChildren()) do
+                if part:IsA("BasePart") then
+                    local bb = part:FindFirstChild("ESP_NameTag")
+                    if bb then bb:Destroy() end
                 end
             end
         end
-        highestGenAnimal = highest
+        playerESPList[char] = nil
+    end
+end
 
-        if highest then
-            local plot = getPlotFromPosition(highest)
-            if plot and plot ~= currentTargetPlot then
-                setupPlotMonitoring(plot)
+local function applyPlayerESP(character, player)
+    if not character or not player or player == Players.LocalPlayer then return end
+    if playerESPList[character] then return end
+    playerESPList[character] = true
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.FillColor = espColor
+    highlight.FillTransparency = 0.25
+    highlight.OutlineColor = espColor
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = character
+    highlight.Parent = character
+
+    local adorneePart = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+    if adorneePart then
+        local bb = Instance.new("BillboardGui")
+        bb.Name = "ESP_NameTag"
+        bb.Size = UDim2.new(0, 100, 0, 24)
+        bb.StudsOffset = Vector3.new(0, 2.5, 0)
+        bb.AlwaysOnTop = true
+        bb.Adornee = adorneePart
+        bb.Parent = adorneePart
+
+        local label = Instance.new("TextLabel")
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Text = player.DisplayName
+        label.TextColor3 = espColor
+        label.TextStrokeColor3 = Color3.new(0, 0, 0)
+        label.TextStrokeTransparency = 0.5
+        label.TextScaled = true
+        label.Font = Enum.Font.GothamBold
+        label.Parent = bb
+    end
+end
+
+local function startPlayerESP()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= Players.LocalPlayer and p.Character then
+            applyPlayerESP(p.Character, p)
+        end
+    end
+
+    table.insert(playerESPConnections, Players.PlayerAdded:Connect(function(p)
+        table.insert(playerESPConnections, p.CharacterAdded:Connect(function(char)
+            task.wait(1)
+            if playerESPEnabled then
+                applyPlayerESP(char, p)
+            end
+        end))
+    end))
+
+    table.insert(playerESPConnections, RunService.RenderStepped:Connect(function()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= Players.LocalPlayer and p.Character then
+                applyPlayerESP(p.Character, p)
             end
         end
+    end))
+end
 
-        if espEnabled then
-            clearPetESP()
-            if highest then
-                attachPetESP(highest, bestGen)
-            end
+local function stopPlayerESP()
+    clearPlayerESP()
+    for _, c in ipairs(playerESPConnections) do
+        if typeof(c) == "RBXScriptConnection" then c:Disconnect() end
+    end
+    playerESPConnections = {}
+end
+
+VisionTab:CreateToggle({
+    Name = "ESP玩家",
+    CurrentValue = false,
+    Callback = function(Value)
+        playerESPEnabled = Value
+        if Value then
+            startPlayerESP()
         else
-            clearPetESP()
+            stopPlayerESP()
         end
-        task.wait(INTERVAL)
-    end
-    
-    clearPetESP()
-    stopPlotMonitoring()
-    highestGenAnimal = nil
-    isPetScanRunning = false
-end
-    
-page:CreateToggle("Tween Behind Highest Gen", false, function(state)
-    pathfindingEnabled = state
-    if state then
-        task.spawn(function() findAndEquipItem("Invisibility Cloak", true) end)
-        if not isPetScanRunning then task.spawn(runPetScanLoop) end
-        pathfindingCoroutine = task.spawn(pathfindLoop)
-    else
-        if pathfindingCoroutine then task.cancel(pathfindingCoroutine); pathfindingCoroutine = nil end
-        local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then humanoid:MoveTo(humanoid.RootPart.Position) end
-        unequipItem("Invisibility Cloak")
-    end
-end)
-
-RunService.RenderStepped:Connect(function(dt)
-    if pathfindingEnabled then return end
-    if not checking then return end
-    
-    local char = player.Character
-    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-    local hum  = char and char:FindFirstChildOfClass("Humanoid")
-    if not (char and hrp and hum and hum.Health > 0) then return end
-
-    local vec = Vector3.zero
-    if keys[Enum.KeyCode.W] then vec += Vector3.new(0, 0, -1) end
-    if keys[Enum.KeyCode.S] then vec += Vector3.new(0, 0,  1) end
-    if keys[Enum.KeyCode.A] then vec += Vector3.new(-1, 0, 0) end
-    if keys[Enum.KeyCode.D] then vec += Vector3.new( 1, 0, 0) end
-    if vec.Magnitude == 0 then return end
-
-    local dir  = workspace.CurrentCamera.CFrame:VectorToWorldSpace(vec).Unit
-    local pos  = hrp.Position + dir * walkSpeed * dt
-    hrp.CFrame = CFrame.lookAt(pos, pos + Vector3.new(dir.X, 0, dir.Z).Unit)
-end)
-
-local shopItems = { 'Slap', 'Speed Coil', 'Trap', 'Iron Slap', 'Gravity Coil', 'Bee Launcher', 'Gold Slap', 'Coil Combo', 'Rage Table', 'Diamond Slap', 'Grapple Hook', 'Taser Gun', 'Emerald Slap', 'Invisibility Cloak', 'Boogie Bomb', 'Ruby Slap', "Medusa's Head", 'Dark Matter Slap', 'Web Slinger', 'Flame Slap', 'Quantum Cloner', 'All Seeing Sentry', 'Nuclear Slap', 'Rainbowrath Sword', 'Galaxy Slap', 'Laser Cape', 'Glitched Slap', 'Body Swap Potion', 'Splatter Slap', 'Paintball Gun' }
-local priorityOrder = { 'Invisibility Cloak', 'Quantum Cloner', "Medusa's Head" }
-table.sort(shopItems, function(a, b)
-    local aIndex = table.find(priorityOrder, a)
-    local bIndex = table.find(priorityOrder, b)
-    if aIndex and bIndex then return aIndex < bIndex
-    elseif aIndex then return true
-    elseif bIndex then return false
-    else return a < b end
-end)
-
-local buyingAll = false
-local buyAllToggle = shopPage:CreateToggle("Buy All Items", false, function(value)
-    buyingAll = value
-    if buyingAll then
-        task.spawn(function()
-            for _, itemName in ipairs(shopItems) do
-                if not buyingAll then break end
-                local success, result = pcall(function() return buyRemote:InvokeServer(itemName) end)
-                if success then window:Notify("Bought " .. itemName, "success")
-                else window:Notify("Failed: " .. itemName, "danger") end
-                task.wait(0.5)
-            end
-            buyAllToggle:Set(false)
-            buyingAll = false
-        end)
-    end
-end)
-
-for _, itemName in ipairs(shopItems) do
-    shopPage:CreateButton("Buy " .. itemName, function()
-        local success, result = pcall(function() return buyRemote:InvokeServer(itemName) end)
-        if success then window:Notify("Bought " .. itemName, "success")
-        else window:Notify("Failed: " .. itemName, "danger") end
-    end)
-end
+    end,
+})
 
 local plotTimers_Enabled = false
 local plotTimers_Coroutine = nil
@@ -629,7 +508,7 @@ end
 
 local function enablePlotTimers()
     disablePlotTimers()
-    
+
     plotTimers_Enabled = true
     plotTimers_Coroutine = task.spawn(function()
         local camera = workspace.CurrentCamera
@@ -640,17 +519,18 @@ local function enablePlotTimers()
         while plotTimers_Enabled do
             pcall(function()
                 for _, label in ipairs(workspace.Plots:GetDescendants()) do
-                    if label:IsA("TextLabel") and label.Name == "RemainingTime" then
-                        if plotTimers_RenderConnections[label] then continue end
+                    task.spawn(function()
+                        if not label:IsA("TextLabel") or label.Name ~= "RemainingTime" then return end
+                        if plotTimers_RenderConnections[label] then return end
 
                         local bb = label:FindFirstAncestorWhichIsA("BillboardGui")
-                        if not bb then continue end
+                        if not bb then return end
 
                         local model = bb:FindFirstAncestorWhichIsA("Model")
-                        if not model then continue end
+                        if not model then return end
 
                         local basePart = model:FindFirstChildWhichIsA("BasePart", true)
-                        if not basePart then continue end
+                        if not basePart then return end
 
                         if not plotTimers_OriginalProperties[label] then
                             plotTimers_OriginalProperties[label] = {
@@ -666,12 +546,18 @@ local function enablePlotTimers()
                             }
                         end
 
-                        bb.MaxDistance = 10000; bb.AlwaysOnTop = true; bb.ClipsDescendants = false
+                        bb.MaxDistance = 10000
+                        bb.AlwaysOnTop = true
+                        bb.ClipsDescendants = false
                         bb.Size = UDim2.new(0, 300, 0, 150)
-                        label.TextScaled = false; label.TextWrapped = true; label.ClipsDescendants = false
-                        label.Size = UDim2.new(1, 0, 0, 32); label.AutomaticSize = Enum.AutomaticSize.Y
 
-                        local conn = RunService.RenderStepped:Connect(function()
+                        label.TextScaled = false
+                        label.TextWrapped = true
+                        label.ClipsDescendants = false
+                        label.Size = UDim2.new(1, 0, 0, 32)
+                        label.AutomaticSize = Enum.AutomaticSize.Y
+
+                        local conn = game:GetService("RunService").RenderStepped:Connect(function()
                             if not basePart or not basePart.Parent or not bb or not bb.Parent then
                                 if plotTimers_RenderConnections[label] then
                                     plotTimers_RenderConnections[label]:Disconnect()
@@ -693,7 +579,7 @@ local function enablePlotTimers()
                             label.Size = UDim2.new(1, 0, 0, newTextSize + 6)
                         end)
                         plotTimers_RenderConnections[label] = conn
-                    end
+                    end)
                 end
             end)
             task.wait(1)
@@ -701,54 +587,413 @@ local function enablePlotTimers()
     end)
 end
 
-local playerEspEnabled = false
-local espConns = {}
-local function togglePlayerESP(state)
-    playerEspEnabled = state
-    local function highlightChar(char)
-        if not char or char:FindFirstChild("HighlightESP") then return end
-        local hl = Instance.new("Highlight")
-        hl.Name = "HighlightESP"; hl.FillTransparency = 0.75; hl.OutlineTransparency = 0.5
-        hl.FillColor = Color3.new(0, 0, 0); hl.OutlineColor = Color3.new(1, 1, 1)
-        hl.Adornee = char; hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop; hl.Parent = char
-    end
+VisualsPage:CreateToggle({
+    Name = "ESP房子時間",
+    CurrentValue = false,
+    Flag = "ShowPlotTimers",
+    Callback = function(state)
+        if state then
+            enablePlotTimers()
+        else
+            disablePlotTimers()
+        end
+    end,
+})
 
-    if state then
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= player then
-                highlightChar(plr.Character)
-                table.insert(espConns, plr.CharacterAdded:Connect(highlightChar))
+-- ESP 高亮色與稀有度對應色
+local highlightColor = Color3.fromRGB(255, 0, 0)
+local qualityColors = {
+    ["Common"] = Color3.fromRGB(255, 255, 255),
+    ["Rare"] = Color3.fromRGB(30, 144, 255),
+    ["Epic"] = Color3.fromRGB(148, 0, 211),
+    ["Legendary"] = Color3.fromRGB(255, 215, 0),
+    ["Mythic"] = Color3.fromRGB(255, 0, 0),
+    ["Brainrot God"] = Color3.fromRGB(255, 105, 180),
+    ["Secret"] = Color3.fromRGB(0, 0, 0),
+}
+
+-- 從 GitHub 載入分類表
+local function loadTargetsFromURL(url)
+    local success, content = pcall(function()
+        return game:HttpGet(url)
+    end)
+    if success and content then
+        local chunk = loadstring(content)
+        if typeof(chunk) == "function" then
+            local ok, result = pcall(chunk)
+            if ok and typeof(result) == "table" then
+                return result
             end
         end
-        table.insert(espConns, Players.PlayerAdded:Connect(function(p)
-            table.insert(espConns, p.CharacterAdded:Connect(highlightChar))
-        end))
-    else
-        for _, plr in ipairs(Players:GetPlayers()) do
-            local char = plr.Character
-            if char and char:FindFirstChild("HighlightESP") then char.HighlightESP:Destroy() end
+    end
+    warn("無法載入 Targets，使用空表")
+    return {}
+end
+
+local GitHubURL = "https://raw.githubusercontent.com/Nash29197/Nash-Hub/main/Steal%20a%20brainrot%20List.lua"
+local Targets = loadTargetsFromURL(GitHubURL)
+
+-- 稀有度開關設定
+getgenv().Rarity = getgenv().Rarity or {}
+local ESPMarked = {}
+
+-- 清除所有 ESP
+local function clearAllESP()
+    for obj, _ in pairs(ESPMarked) do
+        if obj and obj.Parent then
+            local hl = obj:FindFirstChild("ESP_Highlight")
+            if hl then hl:Destroy() end
+
+            for _, part in ipairs(obj:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    local billboard = part:FindFirstChild("ESP_NameTag")
+                    if billboard then billboard:Destroy() end
+                end
+            end
         end
-        for _, conn in ipairs(espConns) do pcall(function() conn:Disconnect() end) end
-        table.clear(espConns)
+        ESPMarked[obj] = nil
     end
 end
-visualsPage:CreateToggle("Player ESP", true, togglePlayerESP)
-togglePlayerESP(true)
 
-visualsPage:CreateToggle("Highest Gen Brainrot ESP", true, function(state)
-    espEnabled = state
-    if state and not isPetScanRunning then
-        task.spawn(runPetScanLoop)
+-- 判斷是否應標記該物件
+local function shouldApplyESP(obj)
+    if not obj or not obj:IsA("Model") then return false end
+    local data = Targets[obj.Name]
+    if not data then return false end
+    local rarity = data.quality
+    if not getgenv().Rarity[rarity] or not getgenv().Rarity[rarity].enabled then return false end
+    return true
+end
+
+-- 標記 ESP
+local function applyESP(obj)
+    if ESPMarked[obj] then return end
+    if not shouldApplyESP(obj) then return end
+
+    ESPMarked[obj] = true
+
+    -- 清除舊 ESP
+    if obj:FindFirstChild("ESP_Highlight") then obj.ESP_Highlight:Destroy() end
+    for _, part in ipairs(obj:GetDescendants()) do
+        if part:IsA("BasePart") then
+            local billboard = part:FindFirstChild("ESP_NameTag")
+            if billboard then billboard:Destroy() end
+        end
+    end
+
+    -- Highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.FillColor = highlightColor
+    highlight.FillTransparency = 0
+    highlight.OutlineColor = Color3.new(1, 1, 1)
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = obj
+    highlight.Parent = obj
+
+    -- 找適合的 adorneePart（用於掛載 BillboardGui）
+    local adorneePart = obj:FindFirstChild("HumanoidRootPart")
+
+    if not adorneePart then
+        if obj.PrimaryPart then
+            adorneePart = obj.PrimaryPart
+        else
+            local highestY = -math.huge
+            for _, part in ipairs(obj:GetDescendants()) do
+                if part:IsA("BasePart") and part.Position.Y > highestY then
+                    highestY = part.Position.Y
+                    adorneePart = part
+                end
+            end
+        end
+    end
+
+    -- 如果還是沒找到，就創建一個透明零件掛載
+    if not adorneePart then
+        adorneePart = Instance.new("Part")
+        adorneePart.Name = "TempESPPart"
+        adorneePart.Size = Vector3.new(1,1,1)
+        adorneePart.Transparency = 1
+        adorneePart.Anchored = true
+        adorneePart.CanCollide = false
+        adorneePart.CFrame = obj:GetPivot()
+        adorneePart.Parent = obj
+    end
+
+    -- 建立 BillboardGui 名稱標籤
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_NameTag"
+    billboard.Size = UDim2.new(0, 120, 0, 24)
+    billboard.StudsOffset = Vector3.new(0, 2.5, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Adornee = adorneePart
+    billboard.Parent = adorneePart
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = obj.Name
+    label.TextColor3 = qualityColors[Targets[obj.Name].quality] or Color3.new(1,1,1)
+    label.TextStrokeColor3 = Color3.new(0,0,0)
+    label.TextStrokeTransparency = 0.5
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+    label.Parent = billboard
+end
+
+-- 刷新所有 ESP
+local function refreshAllESP()
+    clearAllESP()
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if shouldApplyESP(obj) then
+            applyESP(obj)
+        end
+    end
+end
+
+-- Rayfield UI 下拉式選單 (假設你有 VisionTab 變數指向該頁籤)
+VisionTab:CreateDropdown({
+    Name = "ESP腦腐",
+    Options = {"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"},
+    CurrentOption = {},
+    MultipleOptions = true,
+    Flag = "ESP腦腐",
+    Callback = function(Options)
+        for _, rarity in ipairs({"Secret", "Brainrot God", "Mythic", "Legendary", "Epic", "Rare", "Common"}) do
+            getgenv().Rarity[rarity] = {enabled = table.find(Options, rarity) ~= nil}
+        end
+        refreshAllESP()
+    end
+})
+
+-- 自動標記新增模型
+workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("Model") then
+        task.delay(0.3, function()
+            if shouldApplyESP(obj) then
+                applyESP(obj)
+            end
+        end)
     end
 end)
 
-visualsPage:CreateToggle("View Plot Timers", false, function(state)
-    if state then
-        enablePlotTimers()
-    else
-        disablePlotTimers()
+-- 定時刷新（防止斷線或物件延遲出現）
+task.spawn(function()
+    while true do
+        refreshAllESP()
+        task.wait(1)
     end
 end)
 
-espEnabled = true
-task.spawn(runPetScanLoop)
+-- 商店 Tab
+local ShopTab = Window:CreateTab("商店", 0)
+
+-- 遠端載入商店物品清單
+local function loadShopItemsFromURL(url)
+    local success, content = pcall(function()
+        return game:HttpGet(url)
+    end)
+    if success and content then
+        local chunk = loadstring(content)
+        if typeof(chunk) == "function" then
+            local ok, result = pcall(chunk)
+            if ok and typeof(result) == "table" then
+                return result
+            end
+        end
+    end
+    warn("無法載入商店物品清單，使用空表")
+    return {}
+end
+
+local ShopItemsURL = "https://raw.githubusercontent.com/Nash29197/Nash-Hub/main/Steal%20a%20brainrot%20Shop%20Items.lua"
+local ShopItems = loadShopItemsFromURL(ShopItemsURL)
+
+-- 狀態變數
+local selectedItems = {}
+local trapCount = 1
+local autoBuyEnabled = false
+local isBuying = false
+local buyRequestPending = false
+
+-- 資源與服務
+local RepStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local buyRemote = RepStorage:WaitForChild("Packages"):WaitForChild("Net"):WaitForChild("RF/CoinsShopService/RequestBuy")
+local player = Players.LocalPlayer
+local backpack = player:WaitForChild("Backpack")
+local character = player.Character or player.CharacterAdded:Wait()
+
+-- 延遲配置
+local purchaseDelays = {
+    ["Grapple Hook"] = 0.2,
+    ["Trap"] = 0.2,
+    ["Speed Coil"] = 0.2,
+}
+local defaultDelay = 0.4
+
+-- 計算物品數量（背包 + 身上）
+local function countItemInInventory(itemName)
+    task.wait(0.1)
+    local count = 0
+    for _, item in ipairs(backpack:GetChildren()) do
+        if item.Name == itemName then
+            count = count + 1
+        end
+    end
+    for _, item in ipairs(character:GetChildren()) do
+        if item.Name == itemName then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+-- 安全購買單個物品
+local function safeInvoke(itemName)
+    local success, err = pcall(function()
+        buyRemote:InvokeServer(itemName)
+    end)
+    if not success then warn("購買失敗:", itemName, err) end
+    return success
+end
+
+-- 購買多個（1~N）物品
+local function buyItem(item, count)
+    count = count or 1
+    for i = 1, count do
+        if not autoBuyEnabled then break end
+        safeInvoke(item)
+        task.wait(purchaseDelays[item] or defaultDelay)
+    end
+end
+
+-- 檢查是否所有已選物品皆滿足需求
+local function allItemsBought()
+    for _, item in ipairs(ShopItems) do
+        if table.find(selectedItems, item) then
+            local currentCount = countItemInInventory(item)
+            if item == "Trap" then
+                if currentCount < math.min(trapCount, 5) then return false end
+            elseif item == "Grapple Hook" then
+                if currentCount < 5 then return false end
+            elseif currentCount < 1 then
+                return false
+            end
+        end
+    end
+    return true
+end
+
+-- 主購買流程
+local function buySelectedItemsSequential()
+    if isBuying then
+        buyRequestPending = true
+        return
+    end
+    isBuying = true
+    task.spawn(function()
+        while autoBuyEnabled do
+            for _, item in ipairs(ShopItems) do
+                if not autoBuyEnabled then break end
+                if table.find(selectedItems, item) then
+                    local currentCount = countItemInInventory(item)
+                    if item == "Trap" then
+                        local need = math.min(trapCount, 5)
+                        if currentCount < need then
+                            buyItem(item, need - currentCount)
+                        end
+                    elseif item == "Grapple Hook" then
+                        if currentCount < 5 then
+                            buyItem(item, 5 - currentCount)
+                        end
+                    elseif currentCount < 1 then
+                        buyItem(item, 1)
+                    end
+                end
+            end
+
+            if allItemsBought() then break end
+            task.wait(0.5)
+        end
+
+        isBuying = false
+        if buyRequestPending and autoBuyEnabled then
+            buyRequestPending = false
+            buySelectedItemsSequential()
+        end
+    end)
+end
+
+-- ========= 📦 UI 建構區塊（請配合你的 Rayfield ShopTab 使用） =========
+
+ShopTab:CreateDropdown({
+    Name = "道具列表(可複選)",
+    Options = (function()
+        local opts = table.clone(ShopItems)
+        table.insert(opts, 1, "All")
+        return opts
+    end)(),
+    CurrentOption = {},
+    MultipleOptions = true,
+    Flag = "DropdownAutoBuy",
+    Callback = function(Options)
+        if table.find(Options, "All") then
+            selectedItems = table.clone(ShopItems)
+            if library and library.flags then
+                library.flags["DropdownAutoBuy"] = selectedItems
+            end
+        else
+            selectedItems = Options
+        end
+        if autoBuyEnabled then
+            buySelectedItemsSequential()
+        end
+    end,
+})
+
+ShopTab:CreateSlider({
+    Name = "夾子購買數量(1~5)",
+    Range = {1,5}, Increment = 1, Suffix = "個",
+    CurrentValue = trapCount,
+    Flag = "TrapSlider",
+    Callback = function(v)
+        trapCount = v
+        if autoBuyEnabled then buySelectedItemsSequential() end
+    end
+})
+
+ShopTab:CreateToggle({
+    Name = "自動購買",
+    CurrentValue = false,
+    Flag = "ToggleAutoBuy",
+    Callback = function(v)
+        autoBuyEnabled = v
+        if v then buySelectedItemsSequential() end
+    end
+})
+
+local DevelopersTab = Window:CreateTab("開發者工具", 0)
+
+DevelopersTab:CreateButton({
+    Name = "Infinite Yield",
+    Callback = function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+    end,
+})
+
+DevelopersTab:CreateButton({
+    Name = "DEX",
+    Callback = function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/DarkNetworks/Infinite-Yield/refs/heads/main/dex.lua'))()
+    end,
+})
+
+DevelopersTab:CreateButton({
+    Name = "SimpleSpy",
+    Callback = function()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/DarkNetworks/Infinite-Yield/refs/heads/main/SimpleSpyV3/main.lua'))()
+    end,
+})
+
+Rayfield:LoadConfiguration()
