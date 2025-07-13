@@ -49,7 +49,7 @@ return {
     ["Los Tralaleritos"] = {enabled = true, quality = "Secret"},
     ["Graipuss Medussi"] = {enabled = true, quality = "Secret"},
     ["La Grande Combinazione"] = {enabled = true, quality = "Secret"},
-    ["Sammyni Spyderini"] = {enabled = true, quality = "Secret"},
+    ["Chimpanzini Spiderini"] = {enabled = true, quality = "Secret"},
     ["Garama and Madundung"] = {enabled = true, quality = "Secret"},
     ["Las Tralaleritas"] = {enabled = true, quality = "Secret"},
     ["Secret Block"] = {enabled = true, quality = "Secret"},
