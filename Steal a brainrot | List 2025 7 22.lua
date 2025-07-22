@@ -1,6 +1,6 @@
 return {
     ["Noobini Pizzanini"] = {enabled = true, quality = "Common"},
-    ["Lirilí Larilá"] = {enabled = true, quality = "Common"},
+    ["Lirilì Larilà"] = {enabled = true, quality = "Common"},
     ["Tim Cheese"] = {enabled = true, quality = "Common"},
     ["Fluriflura"] = {enabled = true, quality = "Common"},
     ["Talpa Di Fero"] = {enabled = true, quality = "Common"},
