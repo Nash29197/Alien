@@ -40,8 +40,8 @@ local PetQuality = {
 
 -- 反查表：寵物名稱 -> 品質
 local NameToQuality = {}
-for quality, names in pairs(PetQuality) do
-    for _, petName in ipairs(names) do
+for quality, petList in pairs(PetQuality) do
+    for _, petName in ipairs(petList) do
         NameToQuality[petName] = quality
     end
 end
@@ -66,23 +66,16 @@ local petsByQuality = {
     Prismatic = {}
 }
 
--- 遍歷背包物品，判斷是否名稱中有包含任一寵物名稱（不分位置）
+-- 遍歷背包物品，只要包含指定寵物名稱就歸類
 for _, item in ipairs(LocalPlayer:WaitForChild("Backpack"):GetChildren()) do
     if item:IsA("Tool") then
-        local fullName = item.Name
+        local itemName = item.Name
 
-        -- 只要名稱中含有兩個 [] 段落
-        local matchCount = 0
-        for _ in fullName:gmatch("%b[]") do
-            matchCount += 1
-        end
-
-        if matchCount >= 2 then
-            for petName, quality in pairs(NameToQuality) do
-                if fullName:find(petName, 1, true) then
-                    table.insert(petsByQuality[quality], fullName)
-                    break
-                end
+        -- 找出符合的寵物名稱
+        for petName, quality in pairs(NameToQuality) do
+            if itemName:lower():find(petName:lower(), 1, true) then
+                table.insert(petsByQuality[quality], itemName)
+                break -- 一個物品只歸入一種品質分類
             end
         end
     end
