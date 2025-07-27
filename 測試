@@ -38,11 +38,11 @@ local PetQuality = {
     }
 }
 
--- 建立反查表：名稱 -> 品質
+-- 反查表：寵物名稱 -> 品質
 local NameToQuality = {}
 for quality, names in pairs(PetQuality) do
-    for _, name in ipairs(names) do
-        NameToQuality[name] = quality
+    for _, petName in ipairs(names) do
+        NameToQuality[petName] = quality
     end
 end
 
@@ -55,7 +55,7 @@ end)
 -- Roblox 玩家個人頁面網址
 local profileUrl = "https://www.roblox.com/users/" .. tostring(LocalPlayer.UserId) .. "/profile"
 
--- 收集分類後的寵物資訊
+-- 初始化分類儲存表
 local petsByQuality = {
     Common = {},
     Uncommon = {},
@@ -66,29 +66,29 @@ local petsByQuality = {
     Prismatic = {}
 }
 
--- 遍歷背包抓 Tool，並判斷是否符合指定格式與名稱
+-- 遍歷背包物品，判斷是否名稱中有包含任一寵物名稱（不分位置）
 for _, item in ipairs(LocalPlayer:WaitForChild("Backpack"):GetChildren()) do
     if item:IsA("Tool") then
         local fullName = item.Name
 
-        -- 擷取前綴名稱（第一個空格前或第一個 [ 前）
-        local baseName = fullName:match("^(.-) %b[]") or fullName:match("^(.-)%[") or fullName
-
-        -- 計算有幾個 [] 區段
+        -- 只要名稱中含有兩個 [] 段落
         local matchCount = 0
         for _ in fullName:gmatch("%b[]") do
             matchCount += 1
         end
 
-        -- 是否是已知寵物且有兩個 [] 區段
-        local quality = NameToQuality[baseName]
-        if quality and matchCount >= 2 then
-            table.insert(petsByQuality[quality], fullName)
+        if matchCount >= 2 then
+            for petName, quality in pairs(NameToQuality) do
+                if fullName:find(petName, 1, true) then
+                    table.insert(petsByQuality[quality], fullName)
+                    break
+                end
+            end
         end
     end
 end
 
--- 建立 fields 欄位資料
+-- 建立 Discord fields 欄位
 local fields = {}
 for _, quality in ipairs({"Common", "Uncommon", "Rare", "Legendary", "Mythical", "Divine", "Prismatic"}) do
     local pets = petsByQuality[quality]
