@@ -1,0 +1,284 @@
+-- 服務 (Services)
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+
+-- 本地玩家和相關物件 (Local Player & Game Objects)
+local localPlayer = Players.LocalPlayer
+local character = localPlayer.Character or localPlayer.CharacterAdded:Wait()
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+-- 遊戲遠端事件和資料夾 (Game Remotes & Folders)
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local placePlantEvent = remotes:WaitForChild("PlacePlant")
+local waterPlantEvent = remotes:WaitForChild("WaterPlant")
+local harvestPlantEvent = remotes:WaitForChild("Harvest")
+local buyItemEvent = remotes:WaitForChild("BuyItem")
+local sellAllEvent = remotes:WaitForChild("SellAll")
+
+local plotsFolder = workspace:WaitForChild("Plots")
+local playerPlot = plotsFolder:WaitForChild(localPlayer.Name)
+local plantsFolder = playerPlot:WaitForChild("Plants")
+local dirtFolder = playerPlot:WaitForChild("Dirt")
+
+-- 狀態變數 (State Variables)
+local autoFarmEnabled = false
+local autoWaterEnabled = false
+local autoHarvestEnabled = false
+local autoReplantEnabled = false
+local autoBuySeedsEnabled = false
+local autoBuyPotsEnabled = false
+local autoBuySprinklersEnabled = false
+local autoSellEnabled = false
+local walkSpeedValue = 16
+local jumpPowerValue = 50
+
+--================--
+--  GUI 創建
+--================--
+
+-- 主 GUI 容器
+local GardenHubGUI = Instance.new("ScreenGui")
+GardenHubGUI.Name = "GardenHubGUI"
+GardenHubGUI.Parent = CoreGui
+GardenHubGUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- 主框架
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = GardenHubGUI
+MainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+MainFrame.BorderColor3 = Color3.fromRGB(255, 0, 255)
+MainFrame.BorderSizePixel = 2
+MainFrame.Position = UDim2.new(0.2, 0, 0.2, 0)
+MainFrame.Size = UDim2.new(0, 550, 0, 350)
+MainFrame.Draggable = true
+MainFrame.Active = true
+
+-- 標題欄
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Parent = MainFrame
+TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Name = "TitleLabel"
+TitleLabel.Parent = TitleBar
+TitleLabel.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.Size = UDim2.new(1, 0, 1, 0)
+TitleLabel.Font = Enum.Font.SourceSansBold
+TitleLabel.Text = "AhmadV99's Garden Hub"
+TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+TitleLabel.TextSize = 18
+
+-- 頁籤容器
+local TabsFrame = Instance.new("Frame")
+TabsFrame.Name = "TabsFrame"
+TabsFrame.Parent = MainFrame
+TabsFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+TabsFrame.Position = UDim2.new(0, 0, 0, 30)
+TabsFrame.Size = UDim2.new(0, 120, 1, -30)
+
+-- 內容容器
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Parent = MainFrame
+ContentFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ContentFrame.Position = UDim2.new(0, 120, 0, 30)
+ContentFrame.Size = UDim2.new(1, -120, 1, -30)
+
+-- 創建頁籤和對應頁面的函式
+local function createTabAndPage(tabName)
+    local TabButton = Instance.new("TextButton")
+    TabButton.Name = tabName .. "Tab"
+    TabButton.Parent = TabsFrame
+    TabButton.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+    TabButton.Size = UDim2.new(1, -10, 0, 30)
+    TabButton.Position = UDim2.new(0, 5, 0, 5 + (#TabsFrame:GetChildren() - 1) * 35)
+    TabButton.Font = Enum.Font.SourceSans
+    TabButton.Text = tabName
+    TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    TabButton.TextSize = 14
+
+    local PageFrame = Instance.new("Frame")
+    PageFrame.Name = tabName .. "Page"
+    PageFrame.Parent = ContentFrame
+    PageFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    PageFrame.Size = UDim2.new(1, 0, 1, 0)
+    PageFrame.Visible = #ContentFrame:GetChildren() == 1 -- 預設顯示第一個頁面
+
+    TabButton.MouseButton1Click:Connect(function()
+        for _, page in ipairs(ContentFrame:GetChildren()) do
+            page.Visible = (page == PageFrame)
+        end
+        for _, button in ipairs(TabsFrame:GetChildren()) do
+            button.BackgroundColor3 = (button == TabButton) and Color3.fromRGB(80, 80, 80) or Color3.fromRGB(55, 55, 55)
+        end
+    end)
+    
+    return PageFrame
+end
+
+-- 創建功能元件的函式
+local function createCheckbox(parent, text, yPosition)
+    local Checkbox = Instance.new("TextButton")
+    Checkbox.Parent = parent
+    Checkbox.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    Checkbox.Position = UDim2.new(0, 15, 0, yPosition)
+    Checkbox.Size = UDim2.new(0, 150, 0, 25)
+    Checkbox.Font = Enum.Font.SourceSans
+    Checkbox.Text = text
+    Checkbox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Checkbox.TextSize = 14
+    
+    local state = false
+    Checkbox.MouseButton1Click:Connect(function()
+        state = not state
+        Checkbox.BackgroundColor3 = state and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    end)
+    
+    return Checkbox
+end
+
+local function createButton(parent, text, yPosition)
+    local Button = Instance.new("TextButton")
+    Button.Parent = parent
+    Button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    Button.Position = UDim2.new(0, 15, 0, yPosition)
+    Button.Size = UDim2.new(0, 150, 0, 30)
+    Button.Font = Enum.Font.SourceSansBold
+    Button.Text = text
+    Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Button.TextSize = 16
+    return Button
+end
+
+-- 創建所有頁籤和頁面
+local mainPage = createTabAndPage("Main")
+local teleportsPage = createTabAndPage("Teleports")
+local playerPage = createTabAndPage("Player")
+local creditsPage = createTabAndPage("Credits")
+
+-- 在 "Main" 頁面添加功能
+local AutoFarmCheckbox = createCheckbox(mainPage, "Auto Farm All", 20)
+local AutoWaterCheckbox = createCheckbox(mainPage, "Auto Water", 55)
+local AutoHarvestCheckbox = createCheckbox(mainPage, "Auto Harvest", 90)
+local AutoReplantCheckbox = createCheckbox(mainPage, "Auto Replant", 125)
+local AutoBuySeedsCheckbox = createCheckbox(mainPage, "Auto Buy Seeds", 160)
+local AutoSellCheckbox = createCheckbox(mainPage, "Auto Sell All", 195)
+
+-- 在 "Teleports" 頁面添加功能
+local TeleportShopButton = createButton(teleportsPage, "Teleport to Shop", 20)
+local TeleportSellButton = createButton(teleportsPage, "Teleport to Sell Area", 60)
+local TeleportPlotButton = createButton(teleportsPage, "Teleport to My Plot", 100)
+
+-- 在 "Player" 頁面添加功能
+local WalkSpeedSliderLabel = Instance.new("TextLabel", playerPage)
+-- ... (省略其他 GUI 元件的詳細創建過程) ...
+
+-- 在 "Credits" 頁面添加內容
+local CreditsLabel = Instance.new("TextLabel", creditsPage)
+CreditsLabel.Size = UDim2.new(1, -20, 0, 100)
+CreditsLabel.Position = UDim2.new(0, 10, 0, 10)
+CreditsLabel.Text = "Script by AhmadV99\nGUI and reconstruction by Manus"
+-- ... (其他屬性) ...
+
+--================--
+--  功能實現
+--================--
+
+-- 傳送功能
+local function teleportTo(targetCFrame)
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+    if rootPart then
+        rootPart.CFrame = targetCFrame
+    end
+end
+
+--================--
+--  事件綁定
+--================--
+
+-- Main Page
+AutoFarmCheckbox.MouseButton1Click:Connect(function()
+    autoFarmEnabled = not autoFarmEnabled
+    autoWaterEnabled = autoFarmEnabled
+    autoHarvestEnabled = autoFarmEnabled
+    autoReplantEnabled = autoFarmEnabled
+    AutoWaterCheckbox.BackgroundColor3 = autoWaterEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    AutoHarvestCheckbox.BackgroundColor3 = autoHarvestEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    AutoReplantCheckbox.BackgroundColor3 = autoReplantEnabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+end)
+
+AutoWaterCheckbox.MouseButton1Click:Connect(function() autoWaterEnabled = not autoWaterEnabled end)
+AutoHarvestCheckbox.MouseButton1Click:Connect(function() autoHarvestEnabled = not autoHarvestEnabled end)
+AutoReplantCheckbox.MouseButton1Click:Connect(function() autoReplantEnabled = not autoReplantEnabled end)
+AutoBuySeedsCheckbox.MouseButton1Click:Connect(function() autoBuySeedsEnabled = not autoBuySeedsEnabled end)
+AutoSellCheckbox.MouseButton1Click:Connect(function() autoSellEnabled = not autoSellEnabled end)
+
+-- Teleports Page
+TeleportShopButton.MouseButton1Click:Connect(function()
+    teleportTo(workspace.Teleports.ShopTP.CFrame)
+end)
+
+TeleportSellButton.MouseButton1Click:Connect(function()
+    teleportTo(workspace.Teleports.SellTP.CFrame)
+end)
+
+TeleportPlotButton.MouseButton1Click:Connect(function()
+    teleportTo(playerPlot.CFrame * CFrame.new(0, 5, 0))
+end)
+
+-- Player Page
+-- (WalkSpeed 和 JumpPower 的 Slider 事件綁定)
+-- ...
+
+--================--
+--  遊戲循環 (核心邏輯)
+--================--
+
+while wait(0.5) do
+    -- 自動澆水
+    if autoWaterEnabled then
+        for _, plant in ipairs(plantsFolder:GetChildren()) do
+            if plant:IsA("Model") and plant:FindFirstChild("Water") and plant.Water.Value < 100 then
+                waterPlantEvent:FireServer(plant)
+            end
+        end
+    end
+
+    -- 自動收穫
+    if autoHarvestEnabled then
+        for _, plant in ipairs(plantsFolder:GetChildren()) do
+            if plant:IsA("Model") and plant:FindFirstChild("Harvestable") and plant.Harvestable.Value == true then
+                harvestPlantEvent:FireServer(plant)
+            end
+        end
+    end
+
+    -- 自動重新種植
+    if autoReplantEnabled then
+        for _, plot in ipairs(dirtFolder:GetChildren()) do
+            if plot:IsA("Part") and plot:FindFirstChild("Planted") and plot.Planted.Value == false then
+                -- 假設總是種植向日葵 (Sunflower)
+                placePlantEvent:FireServer(plot, "Sunflower")
+            end
+        end
+    end
+    
+    -- 自動購買種子
+    if autoBuySeedsEnabled then
+        -- 假設總是購買向日葵種子
+        buyItemEvent:FireServer("Sunflower Seed")
+    end
+    
+    -- 自動出售
+    if autoSellEnabled then
+        sellAllEvent:FireServer()
+    end
+end
