@@ -127,11 +127,6 @@ function ESP:updateComponents(components, character, player)
         components.Tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y - height / 2)
         components.Tracer.Visible = true
 
-        -- Distance
-        components.DistanceLabel.Text = string.format("[%dM]", distance)
-        components.DistanceLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2 + 15)
-        components.DistanceLabel.Visible = true
-
         -- Name
         components.NameLabel.Text = string.format("[%s]", player.Name)
         components.NameLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y - height / 2 - 15)
@@ -177,7 +172,6 @@ end
 function ESP:hideComponents(components)
     components.Box.Visible = false
     components.Tracer.Visible = false
-    components.DistanceLabel.Visible = false
     components.NameLabel.Visible = false
     components.HealthBar.Outline.Visible = false
     components.HealthBar.Health.Visible = false
@@ -191,7 +185,6 @@ function ESP:removeEsp(player)
     if components then
         components.Box:Remove()
         components.Tracer:Remove()
-        components.DistanceLabel:Remove()
         components.NameLabel:Remove()
         components.HealthBar.Outline:Remove()
         components.HealthBar.Health:Remove()
