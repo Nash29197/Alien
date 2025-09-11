@@ -84,13 +84,6 @@ function ESP:createComponents()
                 Filled = true
             })
         },
-        ItemLabel = self:createDrawing("Text", {
-            Size = 18,
-            Center = true,
-            Outline = true,
-            Color = Color3.fromRGB(255, 255, 255),
-            OutlineColor = Color3.fromRGB(0, 0, 0)
-        }),
         SkeletonLines = {}
     }
 end
@@ -155,12 +148,6 @@ function ESP:updateComponents(components, character, player)
         components.HealthBar.Health.Position = Vector2.new(components.HealthBar.Outline.Position.X + 1, components.HealthBar.Outline.Position.Y + height * (1 - healthFrac))
         components.HealthBar.Health.Visible = true
 
-        -- Tool
-        local tool = player.Backpack:FindFirstChildOfClass("Tool") or character:FindFirstChildOfClass("Tool")
-        components.ItemLabel.Text = tool and ("[Holding: " .. tool.Name .. "]") or "[Holding: No tool]"
-        components.ItemLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2 + 35)
-        components.ItemLabel.Visible = true
-
         -- Skeleton
         local connections = bodyConnections[humanoid.RigType.Name] or {}
         for _, conn in ipairs(connections) do
@@ -194,7 +181,6 @@ function ESP:hideComponents(components)
     components.NameLabel.Visible = false
     components.HealthBar.Outline.Visible = false
     components.HealthBar.Health.Visible = false
-    components.ItemLabel.Visible = false
     for _, line in pairs(components.SkeletonLines) do
         line.Visible = false
     end
@@ -209,7 +195,6 @@ function ESP:removeEsp(player)
         components.NameLabel:Remove()
         components.HealthBar.Outline:Remove()
         components.HealthBar.Health:Remove()
-        components.ItemLabel:Remove()
         for _, line in pairs(components.SkeletonLines) do
             line:Remove()
         end
