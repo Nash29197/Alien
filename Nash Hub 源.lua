@@ -128,7 +128,7 @@ function ESP:updateComponents(components, character, player)
         components.Tracer.Visible = true
 
         -- Name
-        components.NameLabel.Text = string.format("[%s]", player.Name)
+        components.NameLabel.Text = string.format("%s", player.Name)
         components.NameLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y - height / 2 - 15)
         components.NameLabel.Visible = true
 
