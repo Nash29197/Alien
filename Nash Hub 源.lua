@@ -12,6 +12,19 @@ local Window = Rayfield:CreateWindow({
     }
 })
 
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local CollectionService = game:GetService("CollectionService")
+local Camera = workspace.CurrentCamera
+local RepStorage = game:GetService("ReplicatedStorage")
+local buyRemote = RepStorage:WaitForChild("Packages"):WaitForChild("Net"):WaitForChild("RF/CoinsShopService/RequestBuy")
+local backpack = player:WaitForChild("Backpack")
+local character = player.Character or player.CharacterAdded:Wait()
+
 -- 視覺 Tab (ESP)
 local VisionTab = Window:CreateTab("視覺", "eye")
 
@@ -188,7 +201,7 @@ do -- 使用 do...end 區塊將所有相關程式碼封裝在一個局部範圍�
 
     -- // Rayfield UI 元素 //
 
-    local VisionToggle = VisionTab:CreateToggle({
+    local Toggle = VisionTab:CreateToggle({
         Name = "ESP玩家",
         CurrentValue = false,
         Flag = "PlayerESP_Toggle",
@@ -737,4 +750,3 @@ DevelopersTab:CreateButton({
 })
 
 Rayfield:LoadConfiguration()
-
