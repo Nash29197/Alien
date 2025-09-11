@@ -1,4 +1,22 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- ==================================================
+-- 載入函式庫與服務 (統一在頂部宣告)
+-- ==================================================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield' ))()
+
+-- 服務
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+-- 本地玩家相關 (使用 WaitForChild 確保穩定性)
+local LocalPlayer = Players.LocalPlayer
+local PlayerScripts = LocalPlayer:WaitForChild("PlayerScripts")
+local Camera = Workspace.CurrentCamera
+
+-- ==================================================
+-- 建立主視窗
+-- ==================================================
 local Window = Rayfield:CreateWindow({
     Name = "Steal a brainrot | by 三眼怪",
     LoadingTitle = "Loading...",
@@ -12,36 +30,23 @@ local Window = Rayfield:CreateWindow({
     }
 })
 
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local HttpService = game:GetService("HttpService")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Workspace = game:GetService("Workspace")
-local CollectionService = game:GetService("CollectionService")
-local Camera = workspace.CurrentCamera
-local RepStorage = game:GetService("ReplicatedStorage")
-local buyRemote = RepStorage:WaitForChild("Packages"):WaitForChild("Net"):WaitForChild("RF/CoinsShopService/RequestBuy")
-local backpack = player:WaitForChild("Backpack")
-local character = player.Character or player.CharacterAdded:Wait()
+-- ==================================================
+-- 視覺 Tab (Vision)
+-- ==================================================
+-- [FIXED] 移除了 CreateTab 中無效的第二個參數 "eye"
+local VisionTab = Window:CreateTab("視覺")
 
--- 視覺 Tab (ESP)
-local VisionTab = Window:CreateTab("視覺", "eye")
-
-do -- 使用 do...end 區塊將所有相關程式碼封裝在一個局部範圍內
-    -- // 服務與變數 //
-    local LocalPlayer = game:GetService("Players").LocalPlayer
-    local RunService = game:GetService("RunService")
-    local Camera = workspace.CurrentCamera
-
+-- --------------------------------------------------
+-- 玩家 ESP (Player ESP)
+-- --------------------------------------------------
+do -- 使用 do...end 區塊將 ESP 功能封裝起來
+    -- // 變數 //
     local ESP = {}
     ESP.__index = ESP
-
     local espInstance = ESP.new()
     local renderConnection = nil
 
     -- // 核心函式 //
-
     function ESP.new()
         local self = setmetatable({}, ESP)
         self.espCache = {}
@@ -49,6 +54,13 @@ do -- 使用 do...end 區塊將所有相關程式碼封裝在一個局部範圍�
     end
 
     function ESP:createDrawing(type, properties)
+        -- 檢查 Drawing API 是否存在，如果不存在則建立一個假的函式以防止錯誤
+        if not Drawing then
+            return {
+                Remove = function() end,
+                Visible = false
+            }
+        end
         local drawing = Drawing.new(type)
         for prop, val in pairs(properties) do
             drawing[prop] = val
@@ -87,7 +99,9 @@ do -- 使用 do...end 區塊將所有相關程式碼封裝在一個局部範圍�
         local hrp = character:FindFirstChild("HumanoidRootPart")
         local humanoid = character:FindFirstChild("Humanoid")
 
-        if not hrp or not humanoid then return self:hideComponents(components) end
+        if not (hrp and humanoid and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")) then
+            return self:hideComponents(components)
+        end
 
         local hrpPosition, onScreen = Camera:WorldToViewportPoint(hrp.Position)
         if not onScreen then return self:hideComponents(components) end
@@ -97,24 +111,28 @@ do -- 使用 do...end 區塊將所有相關程式碼封裝在一個局部範圍�
         local width, height = math.floor(screenSize.Y / 25 * factor), math.floor(screenSize.X / 27 * factor)
         local distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude)
 
-        -- 更新所有可見元件
-        components.Box.Visible, components.Tracer.Visible, components.DistanceLabel.Visible, components.NameLabel.Visible, components.HealthBar.Outline.Visible, components.HealthBar.Health.Visible, components.ItemLabel.Visible = true, true, true, true, true, true, true
+        -- 顯示所有元件
+        for _, component in pairs(components) do
+            if type(component) == "table" then
+                for _, subComponent in pairs(component) do subComponent.Visible = true end
+            else
+                component.Visible = true
+            end
+        end
 
-        -- Box
+        -- Box & Tracer
         components.Box.Size = Vector2.new(width, height)
         components.Box.Position = Vector2.new(hrpPosition.X - width / 2, hrpPosition.Y - height / 2)
-
-        -- Tracer
         components.Tracer.From = Vector2.new(screenSize.X / 2, 0)
         components.Tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y - height / 2)
 
         -- Labels
+        components.NameLabel.Text = player.Name
+        components.NameLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y - height / 2 - 15)
         components.DistanceLabel.Text = string.format("[%dM]", distance)
         components.DistanceLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2 + 15)
-        components.NameLabel.Text = string.format("[%s]", player.Name)
-        components.NameLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y - height / 2 - 15)
-        local tool = player.Backpack:FindFirstChildOfClass("Tool") or character:FindFirstChildOfClass("Tool")
-        components.ItemLabel.Text = tool and ("[Holding: " .. tool.Name .. "]") or "[Holding: No tool]"
+        local tool = character:FindFirstChildOfClass("Tool") or player:FindFirstChild("Backpack"):FindFirstChildOfClass("Tool")
+        components.ItemLabel.Text = tool and tool.Name or "N/A"
         components.ItemLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2 + 35)
 
         -- Health Bar
@@ -126,7 +144,8 @@ do -- 使用 do...end 區塊將所有相關程式碼封裝在一個局部範圍�
         components.HealthBar.Health.Position = Vector2.new(components.HealthBar.Outline.Position.X + 1, components.HealthBar.Outline.Position.Y + height * (1 - healthFrac))
 
         -- Skeleton
-        local connections = bodyConnections[humanoid.RigType.Name] or {}
+        local connections = bodyConnections[humanoid.RigType.Name]
+        if not connections then return end
         for _, conn in ipairs(connections) do
             local partA, partB = character:FindFirstChild(conn[1]), character:FindFirstChild(conn[2])
             if partA and partB then
@@ -136,7 +155,7 @@ do -- 使用 do...end 區塊將所有相關程式碼封裝在一個局部範圍�
                 if aOnScreen and bOnScreen then
                     line.From, line.To, line.Visible = Vector2.new(a.X, a.Y), Vector2.new(b.X, b.Y), true
                     components.SkeletonLines[conn[1].."-"..conn[2]] = line
-                else
+                elseif line then
                     line.Visible = false
                 end
             end
@@ -145,48 +164,48 @@ do -- 使用 do...end 區塊將所有相關程式碼封裝在一個局部範圍�
 
     function ESP:hideComponents(components)
         if not components then return end
-        components.Box.Visible, components.Tracer.Visible, components.DistanceLabel.Visible, components.NameLabel.Visible, components.HealthBar.Outline.Visible, components.HealthBar.Health.Visible, components.ItemLabel.Visible = false, false, false, false, false, false, false
-        for _, line in pairs(components.SkeletonLines) do
-            line.Visible = false
+        for _, component in pairs(components) do
+            if type(component) == "table" then
+                for _, subComponent in pairs(component) do subComponent.Visible = false end
+            else
+                component.Visible = false
+            end
         end
     end
 
     function ESP:removeEsp(player)
         local components = self.espCache[player]
         if components then
-            components.Box:Remove(); components.Tracer:Remove(); components.DistanceLabel:Remove(); components.NameLabel:Remove()
-            components.HealthBar.Outline:Remove(); components.HealthBar.Health:Remove(); components.ItemLabel:Remove()
-            for _, line in pairs(components.SkeletonLines) do line:Remove() end
+            for _, component in pairs(components) do
+                if type(component) == "table" then
+                    for _, subComponent in pairs(component) do subComponent:Remove() end
+                else
+                    component:Remove()
+                end
+            end
             self.espCache[player] = nil
         end
     end
 
     -- // 控制函式 //
-
     local function startPlayerESP()
         if renderConnection then return end
-
         renderConnection = RunService.RenderStepped:Connect(function()
-            for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+            for _, player in ipairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer then
                     local character = player.Character
-                    if character and character:FindFirstChild("HumanoidRootPart") then
+                    if character then
                         if not espInstance.espCache[player] then
                             espInstance.espCache[player] = espInstance:createComponents()
                         end
                         espInstance:updateComponents(espInstance.espCache[player], character, player)
                     else
-                        if espInstance.espCache[player] then
-                            espInstance:hideComponents(espInstance.espCache[player])
-                        end
+                        espInstance:hideComponents(espInstance.espCache[player])
                     end
                 end
             end
         end)
-
-        game:GetService("Players").PlayerRemoving:Connect(function(player)
-            espInstance:removeEsp(player)
-        end)
+        Players.PlayerRemoving:Connect(function(player) espInstance:removeEsp(player) end)
     end
 
     local function stopPlayerESP()
@@ -200,7 +219,6 @@ do -- 使用 do...end 區塊將所有相關程式碼封裝在一個局部範圍�
     end
 
     -- // Rayfield UI 元素 //
-
     local Toggle = VisionTab:CreateToggle({
         Name = "ESP玩家",
         CurrentValue = false,
