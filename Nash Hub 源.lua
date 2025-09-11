@@ -128,7 +128,7 @@ function ESP:updateComponents(components, character, player)
         components.Tracer.Visible = true
 
         -- Name
-        components.NameLabel.Text = player.Name -- 直接賦值，不再使用 string.format 添加方括號
+        components.NameLabel.Text = player.DisplayName -- 直接賦值，不再使用 string.format 添加方括號
         components.NameLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y - height / 2 - 15)
         components.NameLabel.Visible = true
         
@@ -786,3 +786,4 @@ DevelopersTab:CreateButton({
 })
 
 Rayfield:LoadConfiguration()
+
