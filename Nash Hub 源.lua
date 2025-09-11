@@ -34,204 +34,257 @@ local Window = Rayfield:CreateWindow({
 -- 視覺 Tab (Vision)
 -- ==================================================
 -- [FIXED] 移除了 CreateTab 中無效的第二個參數 "eye"
-local VisionTab = Window:CreateTab("視覺")
+local VisionTab = Window:CreateTab("視覺", "eye")
 
--- --------------------------------------------------
--- 玩家 ESP (Player ESP)
--- --------------------------------------------------
-do -- 使用 do...end 區塊將 ESP 功能封裝起來
-    -- // 變數 //
-    local ESP = {}
-    ESP.__index = ESP
-    local espInstance = ESP.new()
-    local renderConnection = nil
+local LocalPlayer = Players.LocalPlayer
+local ESP = {}
+ESP.__index = ESP
 
-    -- // 核心函式 //
-    function ESP.new()
-        local self = setmetatable({}, ESP)
-        self.espCache = {}
-        return self
+function ESP.new()
+    local self = setmetatable({}, ESP)
+    self.espCache = {}
+    return self
+end
+
+function ESP:createDrawing(type, properties)
+    local drawing = Drawing.new(type)
+    for prop, val in pairs(properties) do
+        drawing[prop] = val
     end
+    return drawing
+end
 
-    function ESP:createDrawing(type, properties)
-        -- 檢查 Drawing API 是否存在，如果不存在則建立一個假的函式以防止錯誤
-        if not Drawing then
-            return {
-                Remove = function() end,
-                Visible = false
-            }
-        end
-        local drawing = Drawing.new(type)
-        for prop, val in pairs(properties) do
-            drawing[prop] = val
-        end
-        return drawing
-    end
-
-    function ESP:createComponents()
-        return {
-            Box = self:createDrawing("Square", { Thickness = 1, Transparency = 1, Color = Color3.fromRGB(255, 255, 255), Filled = false }),
-            Tracer = self:createDrawing("Line", { Thickness = 1, Transparency = 1, Color = Color3.fromRGB(255, 255, 255) }),
-            DistanceLabel = self:createDrawing("Text", { Size = 18, Center = true, Outline = true, Color = Color3.fromRGB(255, 255, 255), OutlineColor = Color3.fromRGB(0, 0, 0) }),
-            NameLabel = self:createDrawing("Text", { Size = 18, Center = true, Outline = true, Color = Color3.fromRGB(255, 255, 255), OutlineColor = Color3.fromRGB(0, 0, 0) }),
-            HealthBar = {
-                Outline = self:createDrawing("Square", { Thickness = 1, Transparency = 1, Color = Color3.fromRGB(0, 0, 0), Filled = false }),
-                Health = self:createDrawing("Square", { Thickness = 1, Transparency = 1, Color = Color3.fromRGB(0, 255, 0), Filled = true })
-            },
-            ItemLabel = self:createDrawing("Text", { Size = 18, Center = true, Outline = true, Color = Color3.fromRGB(255, 255, 255), OutlineColor = Color3.fromRGB(0, 0, 0) }),
-            SkeletonLines = {}
-        }
-    end
-
-    local bodyConnections = {
-        R15 = {
-            {"Head", "UpperTorso"}, {"UpperTorso", "LowerTorso"}, {"LowerTorso", "LeftUpperLeg"}, {"LowerTorso", "RightUpperLeg"},
-            {"LeftUpperLeg", "LeftLowerLeg"}, {"LeftLowerLeg", "LeftFoot"}, {"RightUpperLeg", "RightLowerLeg"}, {"RightLowerLeg", "RightFoot"},
-            {"UpperTorso", "LeftUpperArm"}, {"UpperTorso", "RightUpperArm"}, {"LeftUpperArm", "LeftLowerArm"}, {"LeftLowerArm", "LeftHand"},
-            {"RightUpperArm", "RightLowerArm"}, {"RightLowerArm", "RightHand"}
+function ESP:createComponents()
+    return {
+        Box = self:createDrawing("Square", {
+            Thickness = 1,
+            Transparency = 1,
+            Color = Color3.fromRGB(255, 255, 255),
+            Filled = false
+        }),
+        Tracer = self:createDrawing("Line", {
+            Thickness = 1,
+            Transparency = 1,
+            Color = Color3.fromRGB(255, 255, 255)
+        }),
+        DistanceLabel = self:createDrawing("Text", {
+            Size = 18,
+            Center = true,
+            Outline = true,
+            Color = Color3.fromRGB(255, 255, 255),
+            OutlineColor = Color3.fromRGB(0, 0, 0)
+        }),
+        NameLabel = self:createDrawing("Text", {
+            Size = 18,
+            Center = true,
+            Outline = true,
+            Color = Color3.fromRGB(255, 255, 255),
+            OutlineColor = Color3.fromRGB(0, 0, 0)
+        }),
+        HealthBar = {
+            Outline = self:createDrawing("Square", {
+                Thickness = 1,
+                Transparency = 1,
+                Color = Color3.fromRGB(0, 0, 0),
+                Filled = false
+            }),
+            Health = self:createDrawing("Square", {
+                Thickness = 1,
+                Transparency = 1,
+                Color = Color3.fromRGB(0, 255, 0),
+                Filled = true
+            })
         },
-        R6 = {
-            {"Head", "Torso"}, {"Torso", "Left Arm"}, {"Torso", "Right Arm"}, {"Torso", "Left Leg"}, {"Torso", "Right Leg"}
-        }
+        ItemLabel = self:createDrawing("Text", {
+            Size = 18,
+            Center = true,
+            Outline = true,
+            Color = Color3.fromRGB(255, 255, 255),
+            OutlineColor = Color3.fromRGB(0, 0, 0)
+        }),
+        SkeletonLines = {}
     }
+end
 
-    function ESP:updateComponents(components, character, player)
-        local hrp = character:FindFirstChild("HumanoidRootPart")
-        local humanoid = character:FindFirstChild("Humanoid")
+local bodyConnections = {
+    R15 = {
+        {"Head", "UpperTorso"}, {"UpperTorso", "LowerTorso"},
+        {"LowerTorso", "LeftUpperLeg"}, {"LowerTorso", "RightUpperLeg"},
+        {"LeftUpperLeg", "LeftLowerLeg"}, {"LeftLowerLeg", "LeftFoot"},
+        {"RightUpperLeg", "RightLowerLeg"}, {"RightLowerLeg", "RightFoot"},
+        {"UpperTorso", "LeftUpperArm"}, {"UpperTorso", "RightUpperArm"},
+        {"LeftUpperArm", "LeftLowerArm"}, {"LeftLowerArm", "LeftHand"},
+        {"RightUpperArm", "RightLowerArm"}, {"RightLowerArm", "RightHand"}
+    },
+    R6 = {
+        {"Head", "Torso"}, {"Torso", "Left Arm"}, {"Torso", "Right Arm"},
+        {"Torso", "Left Leg"}, {"Torso", "Right Leg"}
+    }
+}
 
-        if not (hrp and humanoid and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")) then
-            return self:hideComponents(components)
-        end
+function ESP:updateComponents(components, character, player)
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    local humanoid = character:FindFirstChild("Humanoid")
 
-        local hrpPosition, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-        if not onScreen then return self:hideComponents(components) end
+    if not hrp or not humanoid then return self:hideComponents(components) end
 
-        local screenSize = Camera.ViewportSize
-        local factor = 1 / (hrpPosition.Z * math.tan(math.rad(Camera.FieldOfView * 0.5)) * 2) * 100
-        local width, height = math.floor(screenSize.Y / 25 * factor), math.floor(screenSize.X / 27 * factor)
-        local distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude)
+    local hrpPosition, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+    local screenSize = Camera.ViewportSize
+    local factor = 1 / (hrpPosition.Z * math.tan(math.rad(Camera.FieldOfView * 0.5)) * 2) * 100
+    local width, height = math.floor(screenSize.Y / 25 * factor), math.floor(screenSize.X / 27 * factor)
+    local distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - hrp.Position).Magnitude)
 
-        -- 顯示所有元件
-        for _, component in pairs(components) do
-            if type(component) == "table" then
-                for _, subComponent in pairs(component) do subComponent.Visible = true end
-            else
-                component.Visible = true
-            end
-        end
-
-        -- Box & Tracer
+    if onScreen then
+        -- Box
         components.Box.Size = Vector2.new(width, height)
         components.Box.Position = Vector2.new(hrpPosition.X - width / 2, hrpPosition.Y - height / 2)
-        components.Tracer.From = Vector2.new(screenSize.X / 2, 0)
-        components.Tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y - height / 2)
+        components.Box.Visible = true
 
-        -- Labels
-        components.NameLabel.Text = player.Name
-        components.NameLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y - height / 2 - 15)
+        -- Tracer
+        local mouse = LocalPlayer:GetMouse().Hit.p
+        local mousePos = Camera:WorldToViewportPoint(mouse)
+        components.Tracer.From = Vector2.new(mousePos.X, mousePos.Y)
+        components.Tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2)
+        components.Tracer.Visible = true
+
+        -- Distance
         components.DistanceLabel.Text = string.format("[%dM]", distance)
         components.DistanceLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2 + 15)
-        local tool = character:FindFirstChildOfClass("Tool") or player:FindFirstChild("Backpack"):FindFirstChildOfClass("Tool")
-        components.ItemLabel.Text = tool and tool.Name or "N/A"
-        components.ItemLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2 + 35)
+        components.DistanceLabel.Visible = true
+
+        -- Name
+        components.NameLabel.Text = string.format("[%s]", player.Name)
+        components.NameLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y - height / 2 - 15)
+        components.NameLabel.Visible = true
 
         -- Health Bar
         local healthFrac = humanoid.Health / humanoid.MaxHealth
         local barWidth = 5
         components.HealthBar.Outline.Size = Vector2.new(barWidth, height)
         components.HealthBar.Outline.Position = Vector2.new(components.Box.Position.X - barWidth - 2, components.Box.Position.Y)
+        components.HealthBar.Outline.Visible = true
+
         components.HealthBar.Health.Size = Vector2.new(barWidth - 2, height * healthFrac)
         components.HealthBar.Health.Position = Vector2.new(components.HealthBar.Outline.Position.X + 1, components.HealthBar.Outline.Position.Y + height * (1 - healthFrac))
+        components.HealthBar.Health.Visible = true
+
+        -- Tool
+        local tool = player.Backpack:FindFirstChildOfClass("Tool") or character:FindFirstChildOfClass("Tool")
+        components.ItemLabel.Text = tool and ("[Holding: " .. tool.Name .. "]") or "[Holding: No tool]"
+        components.ItemLabel.Position = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2 + 35)
+        components.ItemLabel.Visible = true
 
         -- Skeleton
-        local connections = bodyConnections[humanoid.RigType.Name]
-        if not connections then return end
+        local connections = bodyConnections[humanoid.RigType.Name] or {}
         for _, conn in ipairs(connections) do
             local partA, partB = character:FindFirstChild(conn[1]), character:FindFirstChild(conn[2])
             if partA and partB then
-                local line = components.SkeletonLines[conn[1].."-"..conn[2]] or self:createDrawing("Line", { Thickness = 1, Color = Color3.fromRGB(255, 255, 255) })
+                local line = components.SkeletonLines[conn[1].."-"..conn[2]] or self:createDrawing("Line", {
+                    Thickness = 1,
+                    Color = Color3.fromRGB(255, 255, 255)
+                })
                 local a, aOnScreen = Camera:WorldToViewportPoint(partA.Position)
                 local b, bOnScreen = Camera:WorldToViewportPoint(partB.Position)
                 if aOnScreen and bOnScreen then
-                    line.From, line.To, line.Visible = Vector2.new(a.X, a.Y), Vector2.new(b.X, b.Y), true
+                    line.From = Vector2.new(a.X, a.Y)
+                    line.To = Vector2.new(b.X, b.Y)
+                    line.Visible = true
                     components.SkeletonLines[conn[1].."-"..conn[2]] = line
-                elseif line then
+                else
                     line.Visible = false
                 end
             end
         end
+    else
+        self:hideComponents(components)
     end
+end
 
-    function ESP:hideComponents(components)
-        if not components then return end
-        for _, component in pairs(components) do
-            if type(component) == "table" then
-                for _, subComponent in pairs(component) do subComponent.Visible = false end
-            else
-                component.Visible = false
-            end
+function ESP:hideComponents(components)
+    components.Box.Visible = false
+    components.Tracer.Visible = false
+    components.DistanceLabel.Visible = false
+    components.NameLabel.Visible = false
+    components.HealthBar.Outline.Visible = false
+    components.HealthBar.Health.Visible = false
+    components.ItemLabel.Visible = false
+    for _, line in pairs(components.SkeletonLines) do
+        line.Visible = false
+    end
+end
+
+function ESP:removeEsp(player)
+    local components = self.espCache[player]
+    if components then
+        components.Box:Remove()
+        components.Tracer:Remove()
+        components.DistanceLabel:Remove()
+        components.NameLabel:Remove()
+        components.HealthBar.Outline:Remove()
+        components.HealthBar.Health:Remove()
+        components.ItemLabel:Remove()
+        for _, line in pairs(components.SkeletonLines) do
+            line:Remove()
         end
+        self.espCache[player] = nil
     end
+end
 
-    function ESP:removeEsp(player)
-        local components = self.espCache[player]
-        if components then
-            for _, component in pairs(components) do
-                if type(component) == "table" then
-                    for _, subComponent in pairs(component) do subComponent:Remove() end
+-- 🔁 控制區域
+
+local espInstance = ESP.new()
+local playerESPEnabled = false
+local renderConnection
+
+function startPlayerESP()
+    if renderConnection then return end
+    renderConnection = RunService.RenderStepped:Connect(function()
+        if not playerESPEnabled then return end
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local character = player.Character
+                if character then
+                    if not espInstance.espCache[player] then
+                        espInstance.espCache[player] = espInstance:createComponents()
+                    end
+                    espInstance:updateComponents(espInstance.espCache[player], character, player)
                 else
-                    component:Remove()
-                end
-            end
-            self.espCache[player] = nil
-        end
-    end
-
-    -- // 控制函式 //
-    local function startPlayerESP()
-        if renderConnection then return end
-        renderConnection = RunService.RenderStepped:Connect(function()
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer then
-                    local character = player.Character
-                    if character then
-                        if not espInstance.espCache[player] then
-                            espInstance.espCache[player] = espInstance:createComponents()
-                        end
-                        espInstance:updateComponents(espInstance.espCache[player], character, player)
-                    else
+                    if espInstance.espCache[player] then
                         espInstance:hideComponents(espInstance.espCache[player])
                     end
                 end
             end
-        end)
-        Players.PlayerRemoving:Connect(function(player) espInstance:removeEsp(player) end)
-    end
-
-    local function stopPlayerESP()
-        if renderConnection then
-            renderConnection:Disconnect()
-            renderConnection = nil
         end
-        for player, components in pairs(espInstance.espCache) do
-            espInstance:hideComponents(components)
-        end
-    end
+    end)
 
-    -- // Rayfield UI 元素 //
-    local Toggle = VisionTab:CreateToggle({
-        Name = "ESP玩家",
-        CurrentValue = false,
-        Flag = "PlayerESP_Toggle",
-        Callback = function(Value)
-            if Value then
-                startPlayerESP()
-            else
-                stopPlayerESP()
-            end
-        end,
-    })
-end -- 結束 do 區塊
+    Players.PlayerRemoving:Connect(function(player)
+        espInstance:removeEsp(player)
+    end)
+end
+
+function stopPlayerESP()
+    if renderConnection then
+        renderConnection:Disconnect()
+        renderConnection = nil
+    end
+    for _, components in pairs(espInstance.espCache) do
+        espInstance:hideComponents(components)
+    end
+end
+
+-- ✅ 加入 Rayfield 開關
+VisionTab:CreateToggle({
+    Name = "ESP玩家",
+    CurrentValue = false,
+    Callback = function(Value)
+        playerESPEnabled = Value
+        if Value then
+            startPlayerESP()
+        else
+            stopPlayerESP()
+        end
+    end,
+})
 
 -- === Plot Timers 美化功能相關變數 ===
 local plotTimers_Enabled = false
