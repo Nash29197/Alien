@@ -188,7 +188,7 @@ do -- 使用 do...end 區塊將所有相關程式碼封裝在一個局部範圍�
 
     -- // Rayfield UI 元素 //
 
-    local Toggle = VisionTab:CreateToggle({
+    local VisionToggle = VisionTab:CreateToggle({
         Name = "ESP玩家",
         CurrentValue = false,
         Flag = "PlayerESP_Toggle",
@@ -737,3 +737,4 @@ DevelopersTab:CreateButton({
 })
 
 Rayfield:LoadConfiguration()
+
