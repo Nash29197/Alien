@@ -1,22 +1,4 @@
--- ==================================================
--- 載入函式庫與服務 (統一在頂部宣告)
--- ==================================================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield' ))()
-
--- 服務
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-
--- 本地玩家相關 (使用 WaitForChild 確保穩定性)
-local LocalPlayer = Players.LocalPlayer
-local PlayerScripts = LocalPlayer:WaitForChild("PlayerScripts")
-local Camera = Workspace.CurrentCamera
-
--- ==================================================
--- 建立主視窗
--- ==================================================
 local Window = Rayfield:CreateWindow({
     Name = "Steal a brainrot | by 三眼怪",
     LoadingTitle = "Loading...",
@@ -30,10 +12,17 @@ local Window = Rayfield:CreateWindow({
     }
 })
 
--- ==================================================
--- 視覺 Tab (Vision)
--- ==================================================
--- [FIXED] 移除了 CreateTab 中無效的第二個參數 "eye"
+-- 服務
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+-- 本地玩家相關 (使用 WaitForChild 確保穩定性)
+local LocalPlayer = Players.LocalPlayer
+local PlayerScripts = LocalPlayer:WaitForChild("PlayerScripts")
+local Camera = Workspace.CurrentCamera
+
 local VisionTab = Window:CreateTab("視覺", "eye")
 
 local LocalPlayer = Players.LocalPlayer
