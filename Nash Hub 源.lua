@@ -129,11 +129,9 @@ function ESP:updateComponents(components, character, player)
         components.Box.Position = Vector2.new(hrpPosition.X - width / 2, hrpPosition.Y - height / 2)
         components.Box.Visible = true
 
-        -- Tracer
-        local mouse = LocalPlayer:GetMouse().Hit.p
-        local mousePos = Camera:WorldToViewportPoint(mouse)
-        components.Tracer.From = Vector2.new(mousePos.X, mousePos.Y)
-        components.Tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y + height / 2)
+        -- Tracer (起點: 螢幕頂部中央, 終點: 目標頭部)
+        components.Tracer.From = Vector2.new(screenSize.X / 2, 0)
+        components.Tracer.To = Vector2.new(hrpPosition.X, hrpPosition.Y - height / 2)
         components.Tracer.Visible = true
 
         -- Distance
