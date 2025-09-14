@@ -59,18 +59,15 @@ pcall(function()
     -- 3. 建立個人資料連結
     local profileUrl = "https://www.roblox.com/users/" .. tostring(LocalPlayer.UserId ) .. "/profile"
 
-    -- 4. 準備 embed 的 fields 陣列
+    -- 4. 準備 embed 的 fields 陣列 (移除舊的大標題)
     local fields = {
-        -- 大標題: 玩家
-        { name = "─────────── 玩家資訊 ───────────", value = "**顯示名稱:** " .. LocalPlayer.DisplayName, inline = false },
-        
         -- 第一行並排
         { name = "真實名稱:", value = "```" .. LocalPlayer.Name .. "```", inline = true },
         { name = "ID:", value = "```" .. tostring(LocalPlayer.UserId) .. "```", inline = true },
-        
-        -- 第二行並排
         { name = "個人資料:", value = "[點擊查看](" .. profileUrl .. ")", inline = true },
-        { name = "遊戲:", value = "```" .. gameName .. "```", inline = true },
+
+        -- 第二行 (單獨一行)
+        { name = "遊戲:", value = "```" .. gameName .. "```", inline = false },
 
         -- 第三行 (單獨一行)
         { name = "加入代碼:", value = "```" .. (game.JobId or "N/A") .. "```", inline = false },
@@ -95,6 +92,8 @@ pcall(function()
     local data = {
         username = "執行日誌",
         embeds = {{
+            title = "玩家: " .. LocalPlayer.DisplayName, -- 將顯示名稱設為大標題
+            url = profileUrl, -- 讓大標題可以點擊跳轉到個人檔案
             color = embedColor,
             fields = fields,
             footer = {
