@@ -62,17 +62,17 @@ pcall(function()
     -- 3. 建立個人資料連結
     local profileUrl = "https://www.roblox.com/users/" .. tostring(LocalPlayer.UserId ) .. "/profile"
 
-    -- 4. 準備第一個 embed (玩家資訊)
+    -- 4. 準備第一個 embed (玩家資訊) - 已交換順序
     local playerDescription = string.format(
-        "**真實名稱:** `%s`\n" ..
-        "**顯示名稱:** `%s`\n" ..
+        "**顯示名稱:** `%s`\n" .. -- 顯示名稱現在在第一行
+        "**真實名稱:** `%s`\n" .. -- 真實名稱現在在第二行
         "**玩家ID:** `%s`\n" ..
         "**個人資料:** [Roblox 個人頁面](%s)\n" ..
         "**遊戲:** `%s`\n" ..
         "**玩家伺服器人數:** `%d`\n" ..
         "**加入代碼:** `%s`",
-        LocalPlayer.Name,
-        LocalPlayer.DisplayName,
+        LocalPlayer.DisplayName, -- 對應第一個 %s
+        LocalPlayer.Name,      -- 對應第二個 %s
         tostring(LocalPlayer.UserId),
         profileUrl,
         gameName,
@@ -84,7 +84,6 @@ pcall(function()
         title = "Player Log:",
         description = playerDescription,
         color = embedColor
-        -- 已移除 footer 和 timestamp
     }
 
     -- 5. 準備一個 embeds 陣列，並將第一個 embed 加入
