@@ -206,15 +206,15 @@ local isInfiniteJumpActive = false
 local function onInputBegan(input, gameProcessedEvent)
     if gameProcessedEvent then return end
 
-    local Character = LocalPlayer.Character
-    if not Character or not Character:FindFirstChild("Humanoid") then return end
-
     if input.KeyCode == Enum.KeyCode.Space and isInfiniteJumpActive then
-        Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        local Character = LocalPlayer.Character
+        if Character and Character:FindFirstChild("Humanoid") then
+            Character.Humanoid.Jump = true
+        end
     end
 end
 
-local InfiniteJumpToggle = PlayerTab:Toggle({
+local Toggle = PlayerTab:Toggle({
     Title = "Infinite Jump",
     Desc = "Can Infinite Jump",
     Default = false,
@@ -231,6 +231,7 @@ local InfiniteJumpToggle = PlayerTab:Toggle({
         end
     end
 })
+
 
 local MainTab = Window:Tab({
     Title = "主選單",
