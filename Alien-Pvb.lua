@@ -231,6 +231,17 @@ local selectedItems = {}
 local purchaseEvent = nil
 local currentPurchaseIndex = 1
 
+pcall(function()
+    local eventPath = PURCHASE_EVENT_PATH:split(".")
+    local eventParent = ReplicatedStorage
+    for i = 1, #eventPath do
+        eventParent = eventParent:WaitForChild(eventPath[i], 5)
+    end
+    if eventParent and eventParent:IsA("RemoteEvent") then
+        purchaseEvent = eventParent
+    end
+end)
+
 local function updateFarmingState(state)
     isFarming = state
 
@@ -243,7 +254,13 @@ local function updateFarmingState(state)
         currentPurchaseIndex = 1
         
         farmConnection = RunService.Heartbeat:Connect(function()
-            if #selectedItems == 0 then return end
+            if not isFarming or #selectedItems == 0 then
+                if farmConnection then
+                    farmConnection:Disconnect()
+                    farmConnection = nil
+                end
+                return
+            end
 
             local itemToBuy = selectedItems[currentPurchaseIndex]
             
@@ -265,36 +282,24 @@ local function updateFarmingState(state)
         end)
     else
         isFarming = false
-        if Toggle and Toggle.Update then
-            Toggle:Update(false)
+        if getgenv().AutoBuySeedToggle and getgenv().AutoBuySeedToggle.Update then
+            getgenv().AutoBuySeedToggle:Update(false)
         end
     end
 end
 
-pcall(function()
-    local eventPath = PURCHASE_EVENT_PATH:split(".")
-    local eventParent = ReplicatedStorage
-    for i = 1, #eventPath do
-        eventParent = eventParent:WaitForChild(eventPath[i], 5)
-    end
-    if eventParent and eventParent:IsA("RemoteEvent") then
-        purchaseEvent = eventParent
-    end
-end)
+if not getgenv().ShopTab then
+    return
+end
 
 local displayValues = { "None", "All" }
 for _, seed in ipairs(SEEDS_TO_BUY) do
     table.insert(displayValues, seed)
 end
 
-if not getgenv().ShopTab then
-    return
-end
-local ShopTab = getgenv().ShopTab
-
-local Dropdown = ShopTab:Dropdown({
+ShopTab:Dropdown({
     Title = "Select Seed",
-    Desc = "Choose the seed you want",
+    Desc = "選擇您想要自動購買的種子",
     Values = displayValues,
     Default = {},
     Multi = true,
@@ -325,9 +330,9 @@ local Dropdown = ShopTab:Dropdown({
     end
 })
 
-local Toggle = ShopTab:Toggle({
+getgenv().AutoBuySeedToggle = ShopTab:Toggle({
     Title = "Auto Buy Seed",
-    Desc = "ON or OFF Auto buy seed",
+    Desc = "開啟或關閉自動購買種子",
     Default = false,
     Callback = function(state) 
         updateFarmingState(state)
