@@ -220,7 +220,6 @@ local dataRemoteEvent = BridgeNet:WaitForChild("dataRemoteEvent")
 
 local AutoBuySeed = false
 local orderedPurchaseList = {}
-local currentPurchaseIndex = 1
 
 local seedList = {
     "Cactus Seed", "Strawberry Seed", "Pumpkin Seed", "Sunflower Seed",
@@ -228,28 +227,36 @@ local seedList = {
     "Carnivorous Plant Seed", "Mr Carrot Seed", "Tomatrio Seed"
 }
 
-local dropdownSeedList = {
-    "ALL",
-    "None"
-}
+local dropdownSeedList = { "ALL", "None" }
 for _, seedName in ipairs(seedList) do
     table.insert(dropdownSeedList, seedName)
 end
 
-local Dropdown ShopTab:Dropdown({
+local Dropdown
+
+Dropdown = ShopTab:Dropdown({
     Title = "選擇種子 (可多選)",
     Values = dropdownSeedList,
     Multi = true,
     Callback = function(values)
         local newPurchaseList = {}
+        local isSpecialAction = false
         
         if table.find(values, "ALL") then
-            newPurchaseList = seedList
+            Dropdown:Set(seedList)
+            isSpecialAction = true
         elseif table.find(values, "None") then
-            newPurchaseList = {}
-        else
+            Dropdown:Set({})
+            isSpecialAction = true
+        end
+
+        if not isSpecialAction then
             local selectionSet = {}
-            for _, v in ipairs(values) do selectionSet[v] = true end
+            for _, v in ipairs(values) do
+                if v ~= "ALL" and v ~= "None" then
+                    selectionSet[v] = true
+                end
+            end
             
             for _, seed in ipairs(seedList) do
                 if selectionSet[seed] then
@@ -259,31 +266,41 @@ local Dropdown ShopTab:Dropdown({
         end
         
         orderedPurchaseList = newPurchaseList
-        currentPurchaseIndex = 1
     end
 })
 
-local Toggle ShopTab:Toggle({
+ShopTab:Toggle({
     Title = "啟用自動購買 (Enable Auto Buy)",
     Default = false,
     Callback = function(state)
         AutoBuySeed = state
-        currentPurchaseIndex = 1
     end
 })
 
 task.spawn(function()
-    while task.wait(0.1) do
+    while task.wait(0.5) do 
         if AutoBuySeed and #orderedPurchaseList > 0 then
-            if currentPurchaseIndex > #orderedPurchaseList then
-                currentPurchaseIndex = 1
-            end
-
-            local seedToBuy = orderedPurchaseList[currentPurchaseIndex]
-            local args = { { seedToBuy, "\a" } }
-            dataRemoteEvent:FireServer(unpack(args))
             
-            currentPurchaseIndex = currentPurchaseIndex + 1
+            for _, seedToBuy in ipairs(orderedPurchaseList) do
+                
+                for i = 1, 5 do
+                    if not AutoBuySeed then
+                        -- 只能跳出當前的內層迴圈
+                        break 
+                    end
+
+                    local args = { { seedToBuy, "\a" } }
+                    dataRemoteEvent:FireServer(unpack(args))
+                    
+                    task.wait() 
+                end
+
+                -- 在外層迴圈的每次迭代後，再次檢查開關狀態
+                if not AutoBuySeed then
+                    -- 如果開關已關閉，跳出外層迴圈
+                    break
+                end
+            end
         end
     end
 end)
