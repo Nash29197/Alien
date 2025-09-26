@@ -214,14 +214,35 @@ local ShopTab = Window:Tab({
     Locked = false,
 })
 
+local function AutoBuy(Item)
+    if Item == "" or not Item then
+        return
+    end
+    DataRE:FireServer({ Item, "\7" })
+end
+
+local seedList = {
+    "Cactus Seed",
+    "Strawberry Seed",
+    "Sunflower Seed",
+    "Pumpkin Seed",
+    "Dragon Fruit Seed",
+    "Eggplant Seed",
+    "Watermelon Seed",
+    "Cocotank Seed",
+    "Carnivorous Plant Seed",
+    "Mr Carrot Seed",
+    "Tomatrio Seed"
+}
+
 local buyingSeeds = false
-local cooldown = 1 -- 每 1 秒購買一次
+local cooldown = 1
 
 local Toggle = ShopTab:Toggle({
-    Title = "Auto Buy Seeds",
-    Desc = "Automatically buys seeds",
+    Title = "Auto Buy All Seeds",
+    Desc = "ON or OFF auto buy all seeds",
     Default = false,
-    Callback = function(state) 
+    Callback = function(state)
         buyingSeeds = state
     end
 })
@@ -229,10 +250,12 @@ local Toggle = ShopTab:Toggle({
 task.spawn(function()
     while true do
         if buyingSeeds then
-            if selectedType == "Seed" and selectedItem ~= "" then
-                AutoBuy(selectedItem, ShopType.Seeds)
+            for _, seedName in ipairs(seedList) do
+                for i = 1, 5 do
+                    AutoBuy(seedName)
+                    task.wait(cooldown)
+                end
             end
-            task.wait(cooldown)
         end
         task.wait(0.1)
     end
