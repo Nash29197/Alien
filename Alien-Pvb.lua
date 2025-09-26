@@ -214,130 +214,79 @@ local ShopTab = Window:Tab({
     Locked = false,
 })
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-
-local PURCHASE_EVENT_PATH = "BridgeNet2.dataRemoteEvent"
-local PURCHASE_IDENTIFIER = "\7"
-local SEEDS_TO_BUY = {
+local ALL_SEEDS = {
     "Cactus Seed", "Strawberry Seed", "Pumpkin Seed", "Sunflower Seed",
     "Dragon Fruit Seed", "Eggplant Seed", "Watermelon Seed", "Cocotank Seed",
     "Carnivorous Plant Seed", "Mr Carrot Seed", "Tomatrio Seed"
 }
 
-local isFarming = false
-local farmConnection = nil
+local DROPDOWN_VALUES = { "All", "None" }
+for _, seed in ipairs(ALL_SEEDS) do
+    table.insert(DROPDOWN_VALUES, seed)
+end
+
+local purchaseInterval = 0.1 
+local isAutoBuyEnabled = false 
 local selectedItems = {}
-local purchaseEvent = nil
-local currentPurchaseIndex = 1
 
-pcall(function()
-    local eventPath = PURCHASE_EVENT_PATH:split(".")
-    local eventParent = ReplicatedStorage
-    for i = 1, #eventPath do
-        eventParent = eventParent:WaitForChild(eventPath[i], 5)
-    end
-    if eventParent and eventParent:IsA("RemoteEvent") then
-        purchaseEvent = eventParent
-    end
-end)
+local Dropdown
 
-local function updateFarmingState(state)
-    isFarming = state
-
-    if farmConnection then
-        farmConnection:Disconnect()
-        farmConnection = nil
-    end
-
-    if isFarming and #selectedItems > 0 and purchaseEvent then
-        currentPurchaseIndex = 1
-        
-        farmConnection = RunService.Heartbeat:Connect(function()
-            if not isFarming or #selectedItems == 0 then
-                if farmConnection then
-                    farmConnection:Disconnect()
-                    farmConnection = nil
-                end
-                return
-            end
-
-            local itemToBuy = selectedItems[currentPurchaseIndex]
-            
-            local args = {
-                [1] = {
-                    [1] = itemToBuy,
-                    [2] = PURCHASE_IDENTIFIER
-                }
-            }
-            
-            pcall(function()
-                purchaseEvent:FireServer(unpack(args))
-            end)
-
-            currentPurchaseIndex = currentPurchaseIndex + 1
-            if currentPurchaseIndex > #selectedItems then
-                currentPurchaseIndex = 1
-            end
-        end)
-    else
-        isFarming = false
-        if getgenv().AutoBuySeedToggle and getgenv().AutoBuySeedToggle.Update then
-            getgenv().AutoBuySeedToggle:Update(false)
-        end
-    end
-end
-
-if not getgenv().ShopTab then
-    return
-end
-
-local displayValues = { "None", "All" }
-for _, seed in ipairs(SEEDS_TO_BUY) do
-    table.insert(displayValues, seed)
-end
-
-ShopTab:Dropdown({
-    Title = "Select Seed",
-    Desc = "選擇您想要自動購買的種子",
-    Values = displayValues,
-    Default = {},
+Dropdown = ShopTab:Dropdown({
+    Title = "Seed Shop",
+    Desc = "Choose the seed you want",
+    Values = DROPDOWN_VALUES,
+    Value = {},
     Multi = true,
     AllowNone = true,
-    Callback = function(items) 
-        local selectionSet = {}
-        for _, item in ipairs(items) do
-            selectionSet[item] = true
+    Callback = function(options) 
+        local newSelection = {}
+        local shouldUpdate = false
+
+        if table.find(options, "All") then
+            Dropdown:Set(ALL_SEEDS) 
+            shouldUpdate = true
+        elseif table.find(options, "None") then
+            Dropdown:Set({})
+            shouldUpdate = true
         end
 
-        if selectionSet["None"] then
-            selectedItems = {}
-        elseif selectionSet["All"] then
-            selectedItems = SEEDS_TO_BUY
-        else
-            local newSelection = {}
-            for _, seed in ipairs(SEEDS_TO_BUY) do
-                if selectionSet[seed] then
-                    table.insert(newSelection, seed)
+        if not shouldUpdate then
+            for _, item in ipairs(options) do
+                if item ~= "All" and item ~= "None" then
+                    table.insert(newSelection, item)
                 end
             end
             selectedItems = newSelection
         end
-        
-        if isFarming then
-            updateFarmingState(true)
-        end
     end
 })
 
-getgenv().AutoBuySeedToggle = ShopTab:Toggle({
+local Toggle = ShopTab:Toggle({
     Title = "Auto Buy Seed",
-    Desc = "開啟或關閉自動購買種子",
+    Desc = "ON or OFF Auto buy seed",
     Default = false,
     Callback = function(state) 
-        updateFarmingState(state)
+        isAutoBuyEnabled = state
     end
 })
+
+spawn(function()
+    while true do
+        if isAutoBuyEnabled and #selectedItems > 0 then
+            for _, itemName in ipairs(selectedItems) do
+                if not isAutoBuyEnabled then
+                    break
+                end
+                local args = { [1] = { [1] = itemName, [2] = "\7" } }
+                game:GetService("ReplicatedStorage").BridgeNet2.dataRemoteEvent:FireServer(unpack(args))
+                wait(purchaseInterval)
+            end
+            if isAutoBuyEnabled then wait(0.5) end
+        else
+            wait(1) 
+        end
+    end
+end)
 
 local ESPTab = Window:Tab({
     Title = "ESP",
