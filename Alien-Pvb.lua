@@ -228,10 +228,9 @@ end
 local purchaseInterval = 0.1 
 local isAutoBuyEnabled = false 
 local orderedPurchaseList = {}
+local currentPurchaseIndex = 1
 
-local Dropdown 
-
-Dropdown = ShopTab:Dropdown({
+local Dropdown = ShopTab:Dropdown({
     Title = "Seed Shop",
     Desc = "Choose the seed you want",
     Values = DROPDOWN_VALUES,
@@ -263,6 +262,7 @@ Dropdown = ShopTab:Dropdown({
                 end
             end
             orderedPurchaseList = newPurchaseList
+            currentPurchaseIndex = 1
         end
     end
 })
@@ -273,24 +273,24 @@ local Toggle = ShopTab:Toggle({
     Default = false,
     Callback = function(state) 
         isAutoBuyEnabled = state
+        currentPurchaseIndex = 1
     end
 })
 
 spawn(function()
     while true do
         if isAutoBuyEnabled and #orderedPurchaseList > 0 then
-            for _, itemName in ipairs(orderedPurchaseList) do
-                if not isAutoBuyEnabled then
-                    break
-                end
-                local args = { [1] = { [1] = itemName, [2] = "\7" } }
-                game:GetService("ReplicatedStorage").BridgeNet2.dataRemoteEvent:FireServer(unpack(args))
-                wait(purchaseInterval)
+            if currentPurchaseIndex > #orderedPurchaseList then
+                currentPurchaseIndex = 1
             end
-            if isAutoBuyEnabled then wait(0.5) end
-        else
-            wait(1) 
+
+            local itemName = orderedPurchaseList[currentPurchaseIndex]
+            local args = { [1] = { [1] = itemName, [2] = "\7" } }
+            game:GetService("ReplicatedStorage").BridgeNet2.dataRemoteEvent:FireServer(unpack(args))
+            
+            currentPurchaseIndex = currentPurchaseIndex + 1
         end
+        wait(purchaseInterval)
     end
 end)
 
