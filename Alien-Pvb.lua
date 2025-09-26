@@ -287,10 +287,10 @@ for _, seed in ipairs(SEEDS_TO_BUY) do
     table.insert(displayValues, seed)
 end
 
-if not _G.ShopTab and not getgenv().ShopTab then
+if not getgenv().ShopTab then
     return
 end
-local ShopTab = _G.ShopTab or getgenv().ShopTab
+local ShopTab = getgenv().ShopTab
 
 local Dropdown = ShopTab:Dropdown({
     Title = "Select Seed",
