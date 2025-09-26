@@ -217,45 +217,50 @@ local ShopTab = Window:Tab({
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local purchaseEvent
-pcall(function()
-    purchaseEvent = ReplicatedStorage:WaitForChild("BridgeNet2"):WaitForChild("dataRemoteEvent")
-end)
+local PURCHASE_EVENT_PATH = "BridgeNet2.dataRemoteEvent"
+local PURCHASE_IDENTIFIER = "\7"
+local SEEDS_TO_BUY = {
+    "Cactus Seed", "Strawberry Seed", "Pumpkin Seed", "Sunflower Seed",
+    "Dragon Fruit Seed", "Eggplant Seed", "Watermelon Seed", "Cocotank Seed",
+    "Carnivorous Plant Seed", "Mr Carrot Seed", "Tomatrio Seed"
+}
 
 local isFarming = false
 local farmConnection = nil
 local selectedItems = {}
-
-local REAL_SEEDS = table.freeze({
-    "Cactus Seed", "Strawberry Seed", "Pumpkin Seed", "Sunflower Seed",
-    "Dragon Fruit Seed", "Eggplant Seed", "Watermelon Seed", "Cocotank Seed",
-    "Carnivorous Plant Seed", "Mr Carrot Seed", "Tomatrio Seed"
-})
-
-local displayValues = { "None", "All" }
-for _, seed in ipairs(REAL_SEEDS) do
-    table.insert(displayValues, seed)
-end
+local purchaseEvent = nil
+local currentPurchaseIndex = 1
 
 local function updateFarmingState(state)
     isFarming = state
-    
+
     if farmConnection then
         farmConnection:Disconnect()
         farmConnection = nil
     end
 
     if isFarming and #selectedItems > 0 and purchaseEvent then
+        currentPurchaseIndex = 1
+        
         farmConnection = RunService.Heartbeat:Connect(function()
+            if #selectedItems == 0 then return end
+
+            local itemToBuy = selectedItems[currentPurchaseIndex]
+            
             local args = {
-                {
-                    [1] = nil,
-                    [2] = "\7"
+                [1] = {
+                    [1] = itemToBuy,
+                    [2] = PURCHASE_IDENTIFIER
                 }
             }
-            for _, itemToBuy in ipairs(selectedItems) do
-                args[1][1] = itemToBuy
-                purchaseEvent:FireServer(args)
+            
+            pcall(function()
+                purchaseEvent:FireServer(unpack(args))
+            end)
+
+            currentPurchaseIndex = currentPurchaseIndex + 1
+            if currentPurchaseIndex > #selectedItems then
+                currentPurchaseIndex = 1
             end
         end)
     else
@@ -265,6 +270,27 @@ local function updateFarmingState(state)
         end
     end
 end
+
+pcall(function()
+    local eventPath = PURCHASE_EVENT_PATH:split(".")
+    local eventParent = ReplicatedStorage
+    for i = 1, #eventPath do
+        eventParent = eventParent:WaitForChild(eventPath[i], 5)
+    end
+    if eventParent and eventParent:IsA("RemoteEvent") then
+        purchaseEvent = eventParent
+    end
+end)
+
+local displayValues = { "None", "All" }
+for _, seed in ipairs(SEEDS_TO_BUY) do
+    table.insert(displayValues, seed)
+end
+
+if not _G.ShopTab and not getgenv().ShopTab then
+    return
+end
+local ShopTab = _G.ShopTab or getgenv().ShopTab
 
 local Dropdown = ShopTab:Dropdown({
     Title = "Select Seed",
@@ -282,12 +308,12 @@ local Dropdown = ShopTab:Dropdown({
         if selectionSet["None"] then
             selectedItems = {}
         elseif selectionSet["All"] then
-            selectedItems = REAL_SEEDS
+            selectedItems = SEEDS_TO_BUY
         else
             local newSelection = {}
-            for _, item in ipairs(items) do
-                if not selectionSet["All"] and not selectionSet["None"] then
-                    table.insert(newSelection, item)
+            for _, seed in ipairs(SEEDS_TO_BUY) do
+                if selectionSet[seed] then
+                    table.insert(newSelection, seed)
                 end
             end
             selectedItems = newSelection
