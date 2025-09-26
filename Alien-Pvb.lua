@@ -215,11 +215,11 @@ local ShopTab = Window:Tab({
 })
 
 local buyingSeeds = false
-local cooldown = 1 
+local cooldown = 1 -- 每 1 秒購買一次
 
 local Toggle = ShopTab:Toggle({
     Title = "Auto Buy Seeds",
-    Desc = "Auto buy all seeds",
+    Desc = "Automatically buys seeds",
     Default = false,
     Callback = function(state) 
         buyingSeeds = state
@@ -229,10 +229,12 @@ local Toggle = ShopTab:Toggle({
 task.spawn(function()
     while true do
         if buyingSeeds then
-            AutoBuy("", ShopType.Seeds)
+            if selectedType == "Seed" and selectedItem ~= "" then
+                AutoBuy(selectedItem, ShopType.Seeds)
+            end
             task.wait(cooldown)
         end
-        task.wait(0.1) 
+        task.wait(0.1)
     end
 end)
 
