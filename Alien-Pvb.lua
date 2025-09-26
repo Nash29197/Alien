@@ -227,9 +227,9 @@ end
 
 local purchaseInterval = 0.1 
 local isAutoBuyEnabled = false 
-local selectedItems = {}
+local orderedPurchaseList = {}
 
-local Dropdown
+local Dropdown 
 
 Dropdown = ShopTab:Dropdown({
     Title = "Seed Shop",
@@ -239,24 +239,30 @@ Dropdown = ShopTab:Dropdown({
     Multi = true,
     AllowNone = true,
     Callback = function(options) 
-        local newSelection = {}
-        local shouldUpdate = false
-
+        local isSpecialOption = false
         if table.find(options, "All") then
             Dropdown:Set(ALL_SEEDS) 
-            shouldUpdate = true
+            isSpecialOption = true
         elseif table.find(options, "None") then
             Dropdown:Set({})
-            shouldUpdate = true
+            isSpecialOption = true
         end
 
-        if not shouldUpdate then
+        if not isSpecialOption then
+            local selectionSet = {}
             for _, item in ipairs(options) do
                 if item ~= "All" and item ~= "None" then
-                    table.insert(newSelection, item)
+                    selectionSet[item] = true
                 end
             end
-            selectedItems = newSelection
+
+            local newPurchaseList = {}
+            for _, seed in ipairs(ALL_SEEDS) do
+                if selectionSet[seed] then
+                    table.insert(newPurchaseList, seed)
+                end
+            end
+            orderedPurchaseList = newPurchaseList
         end
     end
 })
@@ -272,8 +278,8 @@ local Toggle = ShopTab:Toggle({
 
 spawn(function()
     while true do
-        if isAutoBuyEnabled and #selectedItems > 0 then
-            for _, itemName in ipairs(selectedItems) do
+        if isAutoBuyEnabled and #orderedPurchaseList > 0 then
+            for _, itemName in ipairs(orderedPurchaseList) do
                 if not isAutoBuyEnabled then
                     break
                 end
