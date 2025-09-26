@@ -214,83 +214,77 @@ local ShopTab = Window:Tab({
     Locked = false,
 })
 
-local ALL_SEEDS = {
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local BridgeNet = ReplicatedStorage:WaitForChild("BridgeNet2")
+local dataRemoteEvent = BridgeNet:WaitForChild("dataRemoteEvent")
+
+local AutoBuySeed = false
+local orderedPurchaseList = {}
+local currentPurchaseIndex = 1
+
+local seedList = {
     "Cactus Seed", "Strawberry Seed", "Pumpkin Seed", "Sunflower Seed",
     "Dragon Fruit Seed", "Eggplant Seed", "Watermelon Seed", "Cocotank Seed",
     "Carnivorous Plant Seed", "Mr Carrot Seed", "Tomatrio Seed"
 }
 
-local DROPDOWN_VALUES = { "All", "None" }
-for _, seed in ipairs(ALL_SEEDS) do
-    table.insert(DROPDOWN_VALUES, seed)
+local dropdownSeedList = {
+    "ALL",
+    "None"
+}
+for _, seedName in ipairs(seedList) do
+    table.insert(dropdownSeedList, seedName)
 end
 
-local purchaseInterval = 0.1 
-local isAutoBuyEnabled = false 
-local orderedPurchaseList = {}
-local currentPurchaseIndex = 1
-
-local Dropdown = ShopTab:Dropdown({
-    Title = "Seed Shop",
-    Desc = "Choose the seed you want",
-    Values = DROPDOWN_VALUES,
-    Value = {},
+local Dropdown ShopTab:Dropdown({
+    Title = "選擇種子 (可多選)",
+    Values = dropdownSeedList,
     Multi = true,
-    AllowNone = true,
-    Callback = function(options) 
-        local isSpecialOption = false
-        if table.find(options, "All") then
-            Dropdown:Set(ALL_SEEDS) 
-            isSpecialOption = true
-        elseif table.find(options, "None") then
-            Dropdown:Set({})
-            isSpecialOption = true
-        end
-
-        if not isSpecialOption then
+    Callback = function(values)
+        local newPurchaseList = {}
+        
+        if table.find(values, "ALL") then
+            newPurchaseList = seedList
+        elseif table.find(values, "None") then
+            newPurchaseList = {}
+        else
             local selectionSet = {}
-            for _, item in ipairs(options) do
-                if item ~= "All" and item ~= "None" then
-                    selectionSet[item] = true
-                end
-            end
-
-            local newPurchaseList = {}
-            for _, seed in ipairs(ALL_SEEDS) do
+            for _, v in ipairs(values) do selectionSet[v] = true end
+            
+            for _, seed in ipairs(seedList) do
                 if selectionSet[seed] then
                     table.insert(newPurchaseList, seed)
                 end
             end
-            orderedPurchaseList = newPurchaseList
-            currentPurchaseIndex = 1
         end
-    end
-})
-
-local Toggle = ShopTab:Toggle({
-    Title = "Auto Buy Seed",
-    Desc = "ON or OFF Auto buy seed",
-    Default = false,
-    Callback = function(state) 
-        isAutoBuyEnabled = state
+        
+        orderedPurchaseList = newPurchaseList
         currentPurchaseIndex = 1
     end
 })
 
-spawn(function()
-    while true do
-        if isAutoBuyEnabled and #orderedPurchaseList > 0 then
+local Toggle ShopTab:Toggle({
+    Title = "啟用自動購買 (Enable Auto Buy)",
+    Default = false,
+    Callback = function(state)
+        AutoBuySeed = state
+        currentPurchaseIndex = 1
+    end
+})
+
+task.spawn(function()
+    while task.wait(0.1) do
+        if AutoBuySeed and #orderedPurchaseList > 0 then
             if currentPurchaseIndex > #orderedPurchaseList then
                 currentPurchaseIndex = 1
             end
 
-            local itemName = orderedPurchaseList[currentPurchaseIndex]
-            local args = { [1] = { [1] = itemName, [2] = "\7" } }
-            game:GetService("ReplicatedStorage").BridgeNet2.dataRemoteEvent:FireServer(unpack(args))
+            local seedToBuy = orderedPurchaseList[currentPurchaseIndex]
+            local args = { { seedToBuy, "\a" } }
+            dataRemoteEvent:FireServer(unpack(args))
             
             currentPurchaseIndex = currentPurchaseIndex + 1
         end
-        wait(purchaseInterval)
     end
 end)
 
