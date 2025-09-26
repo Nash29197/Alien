@@ -214,13 +214,6 @@ local ShopTab = Window:Tab({
     Locked = false,
 })
 
-local function AutoBuy(Item)
-    if Item == "" or not Item then
-        return
-    end
-    DataRE:FireServer({ Item, "\7" })
-end
-
 local seedList = {
     "Cactus Seed",
     "Strawberry Seed",
@@ -239,20 +232,28 @@ local buyingSeeds = false
 local cooldown = 1
 
 local Toggle = ShopTab:Toggle({
-    Title = "Auto Buy All Seeds",
-    Desc = "ON or OFF auto buy all seeds",
+    Title = "Auto Buy Seeds",
+    Desc = "ON or OFF Auto Buy Seeds",
     Default = false,
     Callback = function(state)
         buyingSeeds = state
     end
 })
 
+local RemoteEvent = game:GetService("ReplicatedStorage").BridgeNet2.dataRemoteEvent
+
 task.spawn(function()
     while true do
         if buyingSeeds then
             for _, seedName in ipairs(seedList) do
                 for i = 1, 5 do
-                    AutoBuy(seedName)
+                    local args = {
+                        [1] = {
+                            [1] = seedName,
+                            [2] = "\7"
+                        }
+                    }
+                    RemoteEvent:FireServer(unpack(args))
                     task.wait(cooldown)
                 end
             end
