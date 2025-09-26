@@ -214,94 +214,25 @@ local ShopTab = Window:Tab({
     Locked = false,
 })
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local BridgeNet = ReplicatedStorage:WaitForChild("BridgeNet2")
-local dataRemoteEvent = BridgeNet:WaitForChild("dataRemoteEvent")
+local buyingSeeds = false
+local cooldown = 1 
 
-local AutoBuySeed = false
-local orderedPurchaseList = {}
-
-local seedList = {
-    "Cactus Seed", "Strawberry Seed", "Pumpkin Seed", "Sunflower Seed",
-    "Dragon Fruit Seed", "Eggplant Seed", "Watermelon Seed", "Cocotank Seed",
-    "Carnivorous Plant Seed", "Mr Carrot Seed", "Tomatrio Seed"
-}
-
-local dropdownSeedList = { "ALL", "None" }
-for _, seedName in ipairs(seedList) do
-    table.insert(dropdownSeedList, seedName)
-end
-
-local Dropdown
-
-Dropdown = ShopTab:Dropdown({
-    Title = "選擇種子 (可多選)",
-    Values = dropdownSeedList,
-    Multi = true,
-    Callback = function(values)
-        local newPurchaseList = {}
-        local isSpecialAction = false
-        
-        if table.find(values, "ALL") then
-            Dropdown:Set(seedList)
-            isSpecialAction = true
-        elseif table.find(values, "None") then
-            Dropdown:Set({})
-            isSpecialAction = true
-        end
-
-        if not isSpecialAction then
-            local selectionSet = {}
-            for _, v in ipairs(values) do
-                if v ~= "ALL" and v ~= "None" then
-                    selectionSet[v] = true
-                end
-            end
-            
-            for _, seed in ipairs(seedList) do
-                if selectionSet[seed] then
-                    table.insert(newPurchaseList, seed)
-                end
-            end
-        end
-        
-        orderedPurchaseList = newPurchaseList
-    end
-})
-
-ShopTab:Toggle({
-    Title = "啟用自動購買 (Enable Auto Buy)",
+local Toggle = ShopTab:Toggle({
+    Title = "Auto Buy Seeds",
+    Desc = "Auto buy all seeds",
     Default = false,
-    Callback = function(state)
-        AutoBuySeed = state
+    Callback = function(state) 
+        buyingSeeds = state
     end
 })
 
 task.spawn(function()
-    while task.wait(0.5) do 
-        if AutoBuySeed and #orderedPurchaseList > 0 then
-            
-            for _, seedToBuy in ipairs(orderedPurchaseList) do
-                
-                for i = 1, 5 do
-                    if not AutoBuySeed then
-                        -- 只能跳出當前的內層迴圈
-                        break 
-                    end
-
-                    local args = { { seedToBuy, "\a" } }
-                    dataRemoteEvent:FireServer(unpack(args))
-                    
-                    task.wait() 
-                end
-
-                -- 在外層迴圈的每次迭代後，再次檢查開關狀態
-                if not AutoBuySeed then
-                    -- 如果開關已關閉，跳出外層迴圈
-                    break
-                end
-            end
+    while true do
+        if buyingSeeds then
+            AutoBuy("", ShopType.Seeds)
+            task.wait(cooldown)
         end
+        task.wait(0.1) 
     end
 end)
 
