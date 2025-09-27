@@ -234,7 +234,7 @@ local selectedSeeds = {}
 local buyingSeeds = false
 local cooldown = 1
 
-local Dropdown = Shop:Dropdown({
+local Dropdown = ShopTab:Dropdown({
     Title = "Select Seeds",
     Values = { "None", "All", unpack(seeds) },
     Value = { "None" },
@@ -254,7 +254,7 @@ local Dropdown = Shop:Dropdown({
     end
 })
 
-local Toggle = Shop:Toggle({
+local Toggle = ShopTab:Toggle({
     Title = "Auto Buy Seeds",
     Desc = "Auto buy selected seeds",
     Default = false,
