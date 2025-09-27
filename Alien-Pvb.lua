@@ -214,6 +214,12 @@ local ShopTab = Window:Tab({
     Locked = false,
 })
 
+local Section = ShopTab:Section({ 
+    Title = "Shop",
+    TextXAlignment = "Left",
+    TextSize = 17,
+})
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RemoteEvent = ReplicatedStorage:WaitForChild("BridgeNet2"):WaitForChild("dataRemoteEvent")
 
@@ -287,6 +293,82 @@ task.spawn(function()
                         [1] = {
                             [1] = seed,
                             [2] = "\8"
+                        }
+                    }
+                    RemoteEvent:FireServer(unpack(args))
+                    task.wait(cooldown)
+                end
+            end
+        end
+        task.wait(0.1)
+    end
+end)
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteEvent = ReplicatedStorage:WaitForChild("BridgeNet2"):WaitForChild("dataRemoteEvent")
+
+local tools = {
+    "Water Bucket",
+    "Frost Grenade",
+    "Banana Gun",
+    "Frost Blower",
+    "Carrot Launcher"
+}
+
+local selectedTools = {}
+local autoBuySelected = false
+local autoBuyAll = false
+local cooldown = 0.69
+
+local ToolDropdown = ShopTab:Dropdown({
+    Title = "Select Gears",
+    Values = tools,
+    Value = {},
+    Multi = true,
+    AllowNone = true,
+    Callback = function(options)
+        selectedTools = options
+    end
+})
+
+local ToggleSelected = ShopTab:Toggle({
+    Title = "Auto Buy Gears",
+    Default = false,
+    Callback = function(state)
+        autoBuySelected = state
+    end
+})
+
+local ToggleAll = ShopTab:Toggle({
+    Title = "Auto Buy All Gears",
+    Default = false,
+    Callback = function(state)
+        autoBuyAll = state
+    end
+})
+
+task.spawn(function()
+    while true do
+        if autoBuyAll then
+            for _, tool in ipairs(tools) do
+                if not autoBuyAll then break end
+                local args = {
+                    [1] = {
+                        [1] = tool,
+                        [2] = "\26"
+                    }
+                }
+                RemoteEvent:FireServer(unpack(args))
+                task.wait(cooldown)
+            end
+        elseif autoBuySelected and #selectedTools > 0 then
+            for _, tool in ipairs(tools) do
+                if not autoBuySelected then break end
+                if table.find(selectedTools, tool) then
+                    local args = {
+                        [1] = {
+                            [1] = tool,
+                            [2] = "\26"
                         }
                     }
                     RemoteEvent:FireServer(unpack(args))
