@@ -225,23 +225,19 @@ local seeds = {
     "Dragon Fruit Seed",
     "Eggplant Seed",
     "Watermelon Seed",
+    "Grape Seed",
     "Cocotank Seed",
     "Carnivorous Plant Seed",
     "Mr Carrot Seed",
-    "Tomatrio Seed"
+    "Tomatrio Seed",
+    "Shroombino Seed"
 }
 
 local selectedSeeds = {}
 local autoBuySelected = false
 local autoBuyAll = false
-local minCooldown = 0.15
-local maxCooldown = 0.3
+local cooldown = 0.2
 
-local function randomCooldown()
-    return math.random() * (maxCooldown - minCooldown) + minCooldown
-end
-
--- 下拉選單：選擇種子
 local SeedDropdown = ShopTab:Dropdown({
     Title = "Select Seeds",
     Values = seeds,
@@ -253,7 +249,6 @@ local SeedDropdown = ShopTab:Dropdown({
     end
 })
 
--- 開關：自動購買玩家選擇的種子
 local ToggleSelected = ShopTab:Toggle({
     Title = "Auto Buy Selected Seeds",
     Desc = "Automatically buy selected seeds",
@@ -263,7 +258,6 @@ local ToggleSelected = ShopTab:Toggle({
     end
 })
 
--- 開關：自動購買所有種子
 local ToggleAll = ShopTab:Toggle({
     Title = "Auto Buy All Seeds",
     Desc = "Automatically buy all seeds",
@@ -273,43 +267,33 @@ local ToggleAll = ShopTab:Toggle({
     end
 })
 
--- 自動購買主迴圈
 task.spawn(function()
     while true do
-        if autoBuySelected then
-            for _, seed in ipairs(selectedSeeds) do
-                task.spawn(function()
-                    while autoBuySelected and table.find(selectedSeeds, seed) do
-                        local args = {
-                            [1] = {
-                                [1] = seed,
-                                [2] = "\7"
-                            }
-                        }
-                        RemoteEvent:FireServer(unpack(args))
-                        task.wait(randomCooldown())
-                    end
-                end)
-            end
-        end
-
         if autoBuyAll then
             for _, seed in ipairs(seeds) do
-                task.spawn(function()
-                    while autoBuyAll do
-                        local args = {
-                            [1] = {
-                                [1] = seed,
-                                [2] = "\7"
-                            }
-                        }
-                        RemoteEvent:FireServer(unpack(args))
-                        task.wait(randomCooldown())
-                    end
-                end)
+                if not autoBuyAll then break end
+                local args = {
+                    [1] = {
+                        [1] = seed,
+                        [2] = "\7"
+                    }
+                }
+                RemoteEvent:FireServer(unpack(args))
+                task.wait(cooldown)
+            end
+        elseif autoBuySelected and #selectedSeeds > 0 then
+            for _, seed in ipairs(selectedSeeds) do
+                if not autoBuySelected then break end
+                local args = {
+                    [1] = {
+                        [1] = seed,
+                        [2] = "\7"
+                    }
+                }
+                RemoteEvent:FireServer(unpack(args))
+                task.wait(cooldown)
             end
         end
-
         task.wait(0.1)
     end
 end)
