@@ -214,6 +214,9 @@ local ShopTab = Window:Tab({
     Locked = false,
 })
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteEvent = ReplicatedStorage:WaitForChild("BridgeNet2"):WaitForChild("dataRemoteEvent")
+
 local seeds = {
     "Cactus Seed",
     "Strawberry Seed",
@@ -229,56 +232,84 @@ local seeds = {
 }
 
 local selectedSeeds = {}
-local buyingSeeds = false
-local cooldown = 0.2
+local autoBuySelected = false
+local autoBuyAll = false
+local minCooldown = 0.15
+local maxCooldown = 0.3
 
-local Dropdown = ShopTab:Dropdown({
+local function randomCooldown()
+    return math.random() * (maxCooldown - minCooldown) + minCooldown
+end
+
+-- 下拉選單：選擇種子
+local SeedDropdown = Shop:Dropdown({
     Title = "Select Seeds",
-    Values = { "None", "All", unpack(seeds) },
+    Values = seeds,
     Value = {},
     Multi = true,
     AllowNone = true,
     Callback = function(options)
-        if table.find(options, "All") then
-            selectedSeeds = seeds
-            Dropdown:Refresh(seeds)
-        elseif table.find(options, "None") then
-            selectedSeeds = {}
-            Dropdown:Refresh({})
-        else
-            selectedSeeds = options
-            Dropdown:Refresh(options)
-        end
+        selectedSeeds = options
     end
 })
 
-local Toggle = ShopTab:Toggle({
-    Title = "Auto Buy Seeds",
-    Desc = "Auto buy selected seeds",
+-- 開關：自動購買玩家選擇的種子
+local ToggleSelected = Shop:Toggle({
+    Title = "Auto Buy Selected Seeds",
+    Desc = "Automatically buy selected seeds",
     Default = false,
     Callback = function(state)
-        buyingSeeds = state
+        autoBuySelected = state
     end
 })
 
+-- 開關：自動購買所有種子
+local ToggleAll = Shop:Toggle({
+    Title = "Auto Buy All Seeds",
+    Desc = "Automatically buy all seeds",
+    Default = false,
+    Callback = function(state)
+        autoBuyAll = state
+    end
+})
+
+-- 自動購買主迴圈
 task.spawn(function()
     while true do
-        if buyingSeeds then
+        if autoBuySelected then
             for _, seed in ipairs(selectedSeeds) do
                 task.spawn(function()
-                    while buyingSeeds and table.find(selectedSeeds, seed) do
+                    while autoBuySelected and table.find(selectedSeeds, seed) do
                         local args = {
                             [1] = {
                                 [1] = seed,
                                 [2] = "\7"
                             }
                         }
-                        game:GetService("ReplicatedStorage").BridgeNet2.dataRemoteEvent:FireServer(unpack(args))
-                        task.wait(cooldown)
+                        RemoteEvent:FireServer(unpack(args))
+                        task.wait(randomCooldown())
                     end
                 end)
             end
         end
+
+        if autoBuyAll then
+            for _, seed in ipairs(seeds) do
+                task.spawn(function()
+                    while autoBuyAll do
+                        local args = {
+                            [1] = {
+                                [1] = seed,
+                                [2] = "\7"
+                            }
+                        }
+                        RemoteEvent:FireServer(unpack(args))
+                        task.wait(randomCooldown())
+                    end
+                end)
+            end
+        end
+
         task.wait(0.1)
     end
 end)
