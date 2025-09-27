@@ -225,12 +225,10 @@ local seeds = {
     "Dragon Fruit Seed",
     "Eggplant Seed",
     "Watermelon Seed",
-    "Grape Seed",
     "Cocotank Seed",
     "Carnivorous Plant Seed",
     "Mr Carrot Seed",
-    "Tomatrio Seed",
-    "Shroombino Seed"
+    "Tomatrio Seed"
 }
 
 local selectedSeeds = {}
@@ -250,8 +248,7 @@ local SeedDropdown = ShopTab:Dropdown({
 })
 
 local ToggleSelected = ShopTab:Toggle({
-    Title = "Auto Buy Selected Seeds",
-    Desc = "Automatically buy selected seeds",
+    Title = "Auto Buy Seeds",
     Default = false,
     Callback = function(state)
         autoBuySelected = state
@@ -260,7 +257,6 @@ local ToggleSelected = ShopTab:Toggle({
 
 local ToggleAll = ShopTab:Toggle({
     Title = "Auto Buy All Seeds",
-    Desc = "Automatically buy all seeds",
     Default = false,
     Callback = function(state)
         autoBuyAll = state
@@ -275,7 +271,7 @@ task.spawn(function()
                 local args = {
                     [1] = {
                         [1] = seed,
-                        [2] = "\7"
+                        [2] = "\8"
                     }
                 }
                 RemoteEvent:FireServer(unpack(args))
@@ -287,7 +283,7 @@ task.spawn(function()
                 local args = {
                     [1] = {
                         [1] = seed,
-                        [2] = "\7"
+                        [2] = "\8"
                     }
                 }
                 RemoteEvent:FireServer(unpack(args))
