@@ -242,7 +242,7 @@ local function randomCooldown()
 end
 
 -- 下拉選單：選擇種子
-local SeedDropdown = Shop:Dropdown({
+local SeedDropdown = ShopTab:Dropdown({
     Title = "Select Seeds",
     Values = seeds,
     Value = {},
@@ -254,7 +254,7 @@ local SeedDropdown = Shop:Dropdown({
 })
 
 -- 開關：自動購買玩家選擇的種子
-local ToggleSelected = Shop:Toggle({
+local ToggleSelected = ShopTab:Toggle({
     Title = "Auto Buy Selected Seeds",
     Desc = "Automatically buy selected seeds",
     Default = false,
@@ -264,7 +264,7 @@ local ToggleSelected = Shop:Toggle({
 })
 
 -- 開關：自動購買所有種子
-local ToggleAll = Shop:Toggle({
+local ToggleAll = ShopTab:Toggle({
     Title = "Auto Buy All Seeds",
     Desc = "Automatically buy all seeds",
     Default = false,
