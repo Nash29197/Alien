@@ -222,9 +222,10 @@ local Toggle = FarmTab:Toggle({
 
 repeat task.wait() until game:IsLoaded()
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -272,25 +273,19 @@ end
 local function InstantWarpToBrainrot(brainrot)
     local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
     if hitbox then
-        local currentY = HumanoidRootPart.Position.Y -- 保持在地面高度
-        local targetPos = Vector3.new(hitbox.Position.X, currentY, hitbox.Position.Z)
-        HumanoidRootPart.CFrame = CFrame.new(targetPos, hitbox.Position)
+        HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + Vector3.new(0,1,3), hitbox.Position)
     end
 end
 
-local function AttackBrainrot(brainrot)
-    local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
-    if hitbox then
-        local args = {
-            [1] = {
-                [1] = {
-                    ["target"] = hitbox
-                }
-            }
-        }
-        pcall(function()
-            ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer(unpack(args))
-        end)
+local function AutoClick()
+    if Character:FindFirstChild(HeldToolName) then
+        if UserInputService.TouchEnabled then
+            VirtualUser:Button1Down(Vector2.new(0,0))
+            task.wait(0.1)
+            VirtualUser:Button1Up(Vector2.new(0,0))
+        else
+            UserInputService.InputBegan:Fire(Enum.UserInputType.MouseButton1, false)
+        end
     end
 end
 
@@ -302,7 +297,7 @@ task.spawn(function()
             local target = GetNearestBrainrot()
             if target then
                 InstantWarpToBrainrot(target)
-                AttackBrainrot(target)
+                AutoClick()
             end
         end
         task.wait(ClickInterval)
