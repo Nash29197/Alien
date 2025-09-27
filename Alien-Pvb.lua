@@ -209,16 +209,32 @@ local MainTab = Window:Tab({
     Locked = false,
 })
 
-local autoEnabled = false
+local AutoFarmToggle = false
 
 local Toggle = MainTab:Toggle({
     Title = "Auto Brainrot",
     Default = false,
     Callback = function(state)
-        autoEnabled = state
+        AutoFarmToggle = state
         print("Toggle Activated: " .. tostring(state))
     end
 })
+
+repeat task.wait() until game:IsLoaded()
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+
+local ClickInterval = 0.5
+local HeldToolName = "Leather Grip Bat"
 
 local BrainrotsCache = {}
 
@@ -249,8 +265,7 @@ local function GetNearestBrainrot()
 end
 
 local function EquipBat()
-    local toolName = "Leather Grip Bat"
-    local tool = Backpack:FindFirstChild(toolName) or Character:FindFirstChild(toolName)
+    local tool = Backpack:FindFirstChild(HeldToolName) or Character:FindFirstChild(HeldToolName)
     if tool then
         tool.Parent = Character
     end
@@ -266,15 +281,32 @@ end
 
 task.spawn(function()
     while true do
-        if autoEnabled then
-            UpdateBrainrotsCache()
+        if AutoFarmToggle then
             EquipBat()
+            UpdateBrainrotsCache()
+
             local target = GetNearestBrainrot()
             if target then
                 InstantWarpToBrainrot(target)
+                local hitbox = target:FindFirstChild("BrainrotHitbox")
+                if hitbox then
+                    pcall(function()
+                        ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer({ { target = hitbox } })
+                    end)
+                end
+            end
+
+            if Character:FindFirstChild(HeldToolName) then
+                if UserInputService.TouchEnabled then
+                    VirtualUser:Button1Down(Vector2.new(0,0))
+                    task.wait(ClickInterval)
+                    VirtualUser:Button1Up(Vector2.new(0,0))
+                else
+                    UserInputService.InputBegan:Fire(Enum.UserInputType.MouseButton1, false)
+                end
             end
         end
-        task.wait(0.1)
+        task.wait(ClickInterval)
     end
 end)
 
