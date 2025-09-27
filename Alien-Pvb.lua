@@ -225,6 +225,8 @@ repeat task.wait() until game:IsLoaded()
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -233,9 +235,9 @@ local Backpack = LocalPlayer:WaitForChild("Backpack")
 
 local ClickInterval = 0.01
 local HeldToolName = "Leather Grip Bat"
-
 local BrainrotsCache = {}
 
+-- 更新腦紅列表
 local function UpdateBrainrotsCache()
     local folder = Workspace:WaitForChild("ScriptedMap"):WaitForChild("Brainrots")
     BrainrotsCache = {}
@@ -246,6 +248,7 @@ local function UpdateBrainrotsCache()
     end
 end
 
+-- 取得最近腦紅
 local function GetNearestBrainrot()
     local nearest = nil
     local minDist = math.huge
@@ -262,6 +265,7 @@ local function GetNearestBrainrot()
     return nearest
 end
 
+-- 裝備工具
 local function EquipBat()
     local tool = Backpack:FindFirstChild(HeldToolName) or Character:FindFirstChild(HeldToolName)
     if tool then
@@ -269,30 +273,39 @@ local function EquipBat()
     end
 end
 
+-- 移動到腦紅
 local function InstantWarpToBrainrot(brainrot)
     local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
     if hitbox then
-        local offset = Vector3.new(0, 1, 3)
-        HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + offset, hitbox.Position)
+        HumanoidRootPart.CFrame = CFrame.new(hitbox.Position, hitbox.Position)
     end
 end
 
+-- 攻擊腦紅
 local function AttackBrainrot(brainrot)
     local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
     if hitbox then
         local args = {
             [1] = {
-                [1] = {
-                    ["target"] = hitbox
-                }
+                [1] = { ["target"] = hitbox }
             }
         }
         pcall(function()
             ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer(unpack(args))
         end)
+
+        -- 自動點擊
+        if UserInputService.TouchEnabled then
+            VirtualUser:Button1Down(Vector2.new(0,0))
+            task.wait(0.05)
+            VirtualUser:Button1Up(Vector2.new(0,0))
+        else
+            UserInputService.InputBegan:Fire(Enum.UserInputType.MouseButton1, false)
+        end
     end
 end
 
+-- 主循環
 task.spawn(function()
     while true do
         if AutoFarmToggle then
@@ -510,4 +523,3 @@ local DevTab = Window:Tab({
     Icon = "terminal", -- optional
     Locked = false,
 })
-
