@@ -231,7 +231,7 @@ local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 local Backpack = LocalPlayer:WaitForChild("Backpack")
 
-local ClickInterval = 0.5
+local ClickInterval = 0.01
 local HeldToolName = "Leather Grip Bat"
 
 local BrainrotsCache = {}
@@ -510,3 +510,4 @@ local DevTab = Window:Tab({
     Icon = "terminal", -- optional
     Locked = false,
 })
+
