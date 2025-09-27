@@ -34,6 +34,13 @@ WindUI:Notify({
     Icon = "bell-plus",
 })
 
+local VirtualUser = game:GetService('VirtualUser')
+ 
+game:GetService('Players').LocalPlayer.Idled:Connect(function()
+    VirtualUser:CaptureController()
+    VirtualUser:ClickButton2(Vector2.new())
+end)
+
 local PlayerTab = Window:Tab({
     Title = "Player",
     Icon = "user-round-cog",
@@ -201,6 +208,75 @@ local MainTab = Window:Tab({
     Icon = "house",
     Locked = false,
 })
+
+local autoEnabled = false
+
+local Toggle = MainTab:Toggle({
+    Title = "Auto Brainrot",
+    Default = false,
+    Callback = function(state)
+        autoEnabled = state
+        print("Toggle Activated: " .. tostring(state))
+    end
+})
+
+local BrainrotsCache = {}
+
+local function UpdateBrainrotsCache()
+    local folder = Workspace:WaitForChild("ScriptedMap"):WaitForChild("Brainrots")
+    BrainrotsCache = {}
+    for _, b in ipairs(folder:GetChildren()) do
+        if b:FindFirstChild("BrainrotHitbox") then
+            table.insert(BrainrotsCache, b)
+        end
+    end
+end
+
+local function GetNearestBrainrot()
+    local nearest = nil
+    local minDist = math.huge
+    for _, b in ipairs(BrainrotsCache) do
+        local hitbox = b:FindFirstChild("BrainrotHitbox")
+        if hitbox then
+            local dist = (HumanoidRootPart.Position - hitbox.Position).Magnitude
+            if dist < minDist then
+                minDist = dist
+                nearest = b
+            end
+        end
+    end
+    return nearest
+end
+
+local function EquipBat()
+    local toolName = "Leather Grip Bat"
+    local tool = Backpack:FindFirstChild(toolName) or Character:FindFirstChild(toolName)
+    if tool then
+        tool.Parent = Character
+    end
+end
+
+local function InstantWarpToBrainrot(brainrot)
+    local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
+    if hitbox then
+        local offset = Vector3.new(0, 1, 3)
+        HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + offset, hitbox.Position)
+    end
+end
+
+task.spawn(function()
+    while true do
+        if autoEnabled then
+            UpdateBrainrotsCache()
+            EquipBat()
+            local target = GetNearestBrainrot()
+            if target then
+                InstantWarpToBrainrot(target)
+            end
+        end
+        task.wait(0.1)
+    end
+end)
 
 local BagTab = Window:Tab({
     Title = "Auto Sell",
