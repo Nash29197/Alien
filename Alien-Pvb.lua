@@ -214,8 +214,6 @@ local ShopTab = Window:Tab({
     Locked = false,
 })
 
-local HttpService = game:GetService("HttpService")
-
 local seeds = {
     "Cactus Seed",
     "Strawberry Seed",
@@ -232,24 +230,24 @@ local seeds = {
 
 local selectedSeeds = {}
 local buyingSeeds = false
-local cooldown = 1
+local cooldown = 0.2
 
 local Dropdown = ShopTab:Dropdown({
     Title = "Select Seeds",
     Values = { "None", "All", unpack(seeds) },
-    Value = { "None" },
+    Value = {},
     Multi = true,
     AllowNone = true,
     Callback = function(options)
         if table.find(options, "All") then
             selectedSeeds = seeds
-            Dropdown:Select(seeds)
+            Dropdown:Refresh(seeds)
         elseif table.find(options, "None") then
             selectedSeeds = {}
-            Dropdown:Select({})
+            Dropdown:Refresh({})
         else
             selectedSeeds = options
-            Dropdown:Select(options)
+            Dropdown:Refresh(options)
         end
     end
 })
@@ -267,16 +265,18 @@ task.spawn(function()
     while true do
         if buyingSeeds then
             for _, seed in ipairs(selectedSeeds) do
-                for i = 1, 5 do
-                    local args = {
-                        [1] = {
-                            [1] = seed,
-                            [2] = "\7"
+                task.spawn(function()
+                    while buyingSeeds and table.find(selectedSeeds, seed) do
+                        local args = {
+                            [1] = {
+                                [1] = seed,
+                                [2] = "\7"
+                            }
                         }
-                    }
-                    game:GetService("ReplicatedStorage").BridgeNet2.dataRemoteEvent:FireServer(unpack(args))
-                    task.wait(cooldown)
-                end
+                        game:GetService("ReplicatedStorage").BridgeNet2.dataRemoteEvent:FireServer(unpack(args))
+                        task.wait(cooldown)
+                    end
+                end)
             end
         end
         task.wait(0.1)
