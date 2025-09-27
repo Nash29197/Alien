@@ -214,8 +214,6 @@ local ShopTab = Window:Tab({
     Locked = false,
 })
 
-local HttpService = game:GetService("HttpService")
-
 local seeds = {
     "Cactus Seed",
     "Strawberry Seed",
@@ -231,33 +229,35 @@ local seeds = {
 }
 
 local selectedSeeds = {}
+local buyingSeeds = false
+local cooldown = 1
 
 local Dropdown = ShopTab:Dropdown({
     Title = "Select Seeds",
     Values = { "None", "All", unpack(seeds) },
-    Value = { "None" },
+    Value = {},
     Multi = true,
     AllowNone = true,
-    Callback = function(options) 
+    Callback = function(options)
         if table.find(options, "All") then
             selectedSeeds = seeds
+            Dropdown.Value = seeds
         elseif table.find(options, "None") then
             selectedSeeds = {}
+            Dropdown.Value = {}
         else
             selectedSeeds = options
+            Dropdown.Value = options
         end
     end
 })
 
-local buyingSeeds = false
-local cooldown = 1
-
-local Toggle = ShopTab:Toggle({
+local Toggle = Shop:Toggle({
     Title = "Auto Buy Seeds",
     Desc = "Auto buy selected seeds",
     Default = false,
     Callback = function(state) 
-        buyingSeeds = stated
+        buyingSeeds = state
     end
 })
 
@@ -266,7 +266,13 @@ task.spawn(function()
         if buyingSeeds then
             for _, seed in ipairs(selectedSeeds) do
                 for i = 1, 5 do
-                    DataRE:FireServer({ seed, "\7" })
+                    local args = {
+                        [1] = {
+                            [1] = seed,
+                            [2] = "\7"
+                        }
+                    }
+                    game:GetService("ReplicatedStorage").BridgeNet2.dataRemoteEvent:FireServer(unpack(args))
                     task.wait(cooldown)
                 end
             end
