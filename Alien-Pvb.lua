@@ -272,8 +272,9 @@ end
 local function InstantWarpToBrainrot(brainrot)
     local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
     if hitbox then
-        local offset = Vector3.new(0, 1, 3)
-        HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + offset, hitbox.Position)
+        local currentY = HumanoidRootPart.Position.Y -- 保持在地面高度
+        local targetPos = Vector3.new(hitbox.Position.X, currentY, hitbox.Position.Z)
+        HumanoidRootPart.CFrame = CFrame.new(targetPos, hitbox.Position)
     end
 end
 
@@ -298,7 +299,6 @@ task.spawn(function()
         if AutoFarmToggle then
             EquipBat()
             UpdateBrainrotsCache()
-
             local target = GetNearestBrainrot()
             if target then
                 InstantWarpToBrainrot(target)
