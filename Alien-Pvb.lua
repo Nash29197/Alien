@@ -225,6 +225,8 @@ repeat task.wait() until game:IsLoaded()
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
 
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -233,8 +235,8 @@ local Backpack = LocalPlayer:WaitForChild("Backpack")
 
 local ClickInterval = 0.01
 local HeldToolName = "Leather Grip Bat"
-
 local BrainrotsCache = {}
+local AttackHeight = 3 -- 保持在 Hitbox 上方高度
 
 local function UpdateBrainrotsCache()
     local folder = Workspace:WaitForChild("ScriptedMap"):WaitForChild("Brainrots")
@@ -269,24 +271,22 @@ local function EquipBat()
     end
 end
 
-local function AttackBrainrot(brainrot)
-    if brainrot then
-        local brainrotID = brainrot.Name
-        local args = {
-            [1] = {
-                [1] = brainrotID
-            }
-        }
-        pcall(function()
-            ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer(unpack(args))
-        end)
+local function WarpAboveBrainrot(brainrot)
+    local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
+    if hitbox then
+        HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + Vector3.new(0, AttackHeight, 0), hitbox.Position)
     end
 end
 
-local function InstantWarpToBrainrot(brainrot)
-    local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
-    if hitbox then
-        HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + Vector3.new(0,1,3), hitbox.Position)
+local function AutoClick()
+    if Character:FindFirstChild(HeldToolName) then
+        if UserInputService.TouchEnabled then
+            VirtualUser:Button1Down(Vector2.new(0,0))
+            task.wait(0.1)
+            VirtualUser:Button1Up(Vector2.new(0,0))
+        else
+            UserInputService.InputBegan:Fire(Enum.UserInputType.MouseButton1, false)
+        end
     end
 end
 
@@ -297,8 +297,8 @@ task.spawn(function()
             UpdateBrainrotsCache()
             local target = GetNearestBrainrot()
             if target then
-                InstantWarpToBrainrot(target)
-                AttackBrainrot(target)
+                WarpAboveBrainrot(target)
+                AutoClick()
             end
         end
         task.wait(ClickInterval)
