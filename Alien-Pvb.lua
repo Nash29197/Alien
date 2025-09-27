@@ -225,10 +225,12 @@ local seeds = {
     "Dragon Fruit Seed",
     "Eggplant Seed",
     "Watermelon Seed",
+    "Grape Seed",
     "Cocotank Seed",
     "Carnivorous Plant Seed",
     "Mr Carrot Seed",
-    "Tomatrio Seed"
+    "Tomatrio Seed",
+    "Shroombino Seed"
 }
 
 local selectedSeeds = {}
@@ -278,16 +280,18 @@ task.spawn(function()
                 task.wait(cooldown)
             end
         elseif autoBuySelected and #selectedSeeds > 0 then
-            for _, seed in ipairs(selectedSeeds) do
+            for _, seed in ipairs(seeds) do
                 if not autoBuySelected then break end
-                local args = {
-                    [1] = {
-                        [1] = seed,
-                        [2] = "\8"
+                if table.find(selectedSeeds, seed) then
+                    local args = {
+                        [1] = {
+                            [1] = seed,
+                            [2] = "\8"
+                        }
                     }
-                }
-                RemoteEvent:FireServer(unpack(args))
-                task.wait(cooldown)
+                    RemoteEvent:FireServer(unpack(args))
+                    task.wait(cooldown)
+                end
             end
         end
         task.wait(0.1)
@@ -317,5 +321,3 @@ local DevTab = Window:Tab({
     Icon = "terminal", -- optional
     Locked = false,
 })
-
-
