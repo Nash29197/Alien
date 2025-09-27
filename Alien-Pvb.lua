@@ -214,6 +214,8 @@ local ShopTab = Window:Tab({
     Locked = false,
 })
 
+local HttpService = game:GetService("HttpService")
+
 local seeds = {
     "Cactus Seed",
     "Strawberry Seed",
@@ -232,22 +234,22 @@ local selectedSeeds = {}
 local buyingSeeds = false
 local cooldown = 1
 
-local Dropdown = ShopTab:Dropdown({
+local Dropdown = Shop:Dropdown({
     Title = "Select Seeds",
     Values = { "None", "All", unpack(seeds) },
-    Value = {},
+    Value = { "None" },
     Multi = true,
     AllowNone = true,
     Callback = function(options)
         if table.find(options, "All") then
             selectedSeeds = seeds
-            Dropdown.Value = seeds
+            Dropdown:Select(seeds)
         elseif table.find(options, "None") then
             selectedSeeds = {}
-            Dropdown.Value = {}
+            Dropdown:Select({})
         else
             selectedSeeds = options
-            Dropdown.Value = options
+            Dropdown:Select(options)
         end
     end
 })
@@ -256,7 +258,7 @@ local Toggle = Shop:Toggle({
     Title = "Auto Buy Seeds",
     Desc = "Auto buy selected seeds",
     Default = false,
-    Callback = function(state) 
+    Callback = function(state)
         buyingSeeds = state
     end
 })
