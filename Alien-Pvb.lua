@@ -234,7 +234,7 @@ local seeds = {
 local selectedSeeds = {}
 local autoBuySelected = false
 local autoBuyAll = false
-local cooldown = 0.5
+local cooldown = 0.69
 
 local SeedDropdown = ShopTab:Dropdown({
     Title = "Select Seeds",
@@ -317,4 +317,5 @@ local DevTab = Window:Tab({
     Icon = "terminal", -- optional
     Locked = false,
 })
+
 
