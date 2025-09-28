@@ -13,9 +13,6 @@ local Window = WindUI:CreateWindow({
     },
 })
 
-local ConfigManager = Window.ConfigManager
-local myConfig = ConfigManager:CreateConfig("Alien-Pvb")
-
 Window:EditOpenButton({
     Title = "Alien",
     Icon = "monitor",
@@ -215,44 +212,65 @@ local FarmTab = Window:Tab({
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 local Backpack = LocalPlayer:WaitForChild("Backpack")
-local Workspace = game:GetService("Workspace")
 
 local AutoFarm = false
 local HeldToolName = "Leather Grip Bat"
 
-local BrainrotsCache = {}
-local function UpdateBrainrotsCache()
-    local folder = Workspace:WaitForChild("ScriptedMap"):WaitForChild("Brainrots")
-    BrainrotsCache = {}
-    for _, b in ipairs(folder:GetChildren()) do
-        if b:FindFirstChild("BrainrotHitbox") then
-            table.insert(BrainrotsCache, b)
+local function GetNearestPlot()
+    local nearestPlot = nil
+    local minDist = math.huge
+    for _, plot in ipairs(Workspace.Plots:GetChildren()) do
+        if plot:IsA("Folder") then
+            local center = plot:FindFirstChild("Center") or plot:FindFirstChildWhichIsA("BasePart")
+            if center then
+                local dist = (HumanoidRootPart.Position - center.Position).Magnitude
+                if dist < minDist then
+                    minDist = dist
+                    nearestPlot = plot
+                end
+            end
         end
     end
+    return nearestPlot
 end
 
-local function GetNearestBrainrot()
-    local nearest = nil
+local function GetNearestBrainrotInNearestPlot()
+    local nearestPlot = GetNearestPlot()
+    if not nearestPlot then
+        return nil, nil
+    end
+
+    local brainrotsInPlotFolder = nearestPlot:FindFirstChild("Brainrots")
+    if not brainrotsInPlotFolder then
+        return nil, nil
+    end
+
+    local nearestBrainrotInPlot = nil
     local minDist = math.huge
-    for _, b in ipairs(BrainrotsCache) do
-        local hitbox = b:FindFirstChild("BrainrotHitbox")
-        if hitbox and hitbox.Parent and hitbox.Parent:IsDescendantOf(Workspace) then
-            local dist = (HumanoidRootPart.Position - hitbox.Position).Magnitude
-            if dist < minDist then
-                minDist = dist
-                nearest = b
+
+    for _, brainrotSlot in ipairs(brainrotsInPlotFolder:GetChildren()) do
+        local brainrot = brainrotSlot:FindFirstChild("Brainrot")
+        if brainrot then
+            local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
+            if hitbox and hitbox.Parent and hitbox.Parent:IsDescendantOf(Workspace) then
+                local dist = (HumanoidRootPart.Position - hitbox.Position).Magnitude
+                if dist < minDist then
+                    minDist = dist
+                    nearestBrainrotInPlot = brainrot
+                end
             end
         end
     end
     
-    if nearest then
-        return nearest, nearest.Name
+    if nearestBrainrotInPlot then
+        return nearestBrainrotInPlot, nearestBrainrotInPlot.Name
     end
 
     return nil, nil
@@ -263,7 +281,6 @@ local function EquipBat()
     if currentTool and currentTool.Name == HeldToolName then
         return
     end
-
     local toolInBackpack = Backpack:FindFirstChild(HeldToolName)
     if toolInBackpack then
         Humanoid:EquipTool(toolInBackpack)
@@ -290,31 +307,32 @@ local function farmLoop()
 
     EquipBat()
     
-    local nearestTarget, targetInstanceName = GetNearestBrainrot()
+    local nearestTarget, targetInstanceName = GetNearestBrainrotInNearestPlot()
     
     if nearestTarget then
         InstantWarpToBrainrot(nearestTarget)
         
-        local args = {
-            [1] = {
-                [1] = targetInstanceName
+        local targetHitbox = nearestTarget:FindFirstChild("BrainrotHitbox")
+        if targetHitbox then
+            local args = {
+                [1] = {
+                    target = targetHitbox 
+                }
             }
-        }
-        ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer(unpack(args))
-        
-    else
-        UpdateBrainrotsCache()
+            pcall(function()
+                ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer(unpack(args))
+            end)
+        end
     end
 end
 
 local AutoFarmBrainrotsToggle = FarmTab:Toggle({
-    Title = "Auto Farm Brainrots",
+    Title = "Auto Farm Brainrots (Plot Only)",
     Default = false,
     Callback = function(state) 
         AutoFarm = state
         if AutoFarm then
             EquipBat()
-            UpdateBrainrotsCache()
             
             if not farmConnection then
                 farmConnection = RunService.Heartbeat:Connect(farmLoop)
@@ -505,25 +523,3 @@ task.spawn(function()
         task.wait(0.1)
     end
 end)
-
-local ConfigTab = Window:Tab({
-    Title = "Config",
-    Icon = "save", -- l
-    Locked = false,
-})
-
-local Button = ConfigTab:Button({
-    Title = "Save Config",
-    Locked = false,
-    Callback = function()
-       myConfig:Save()
-    end
-})
-
-local Button = ConfigTab:Button({
-    Title = "Load Config",
-    Locked = false,
-    Callback = function()
-       myConfig:Load()
-    end
-})
