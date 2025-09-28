@@ -209,106 +209,71 @@ local FarmTab = Window:Tab({
     Locked = false,
 })
 
-repeat task.wait() until game:IsLoaded()
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local VirtualUser = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-local Humanoid = Character:WaitForChild("Humanoid")
-local Backpack = LocalPlayer:WaitForChild("Backpack")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
-local HeldToolName = "Leather Grip Bat"
-local autoEnabled = false  
+local brainrotsFolder = game.Workspace:WaitForChild("Brainrots")
+local attackRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("AttacksServer"):WaitForChild("WeaponAttack")
 
-local function EquipTool()
-    local tool = Backpack:FindFirstChild(HeldToolName) or Character:FindFirstChild(HeldToolName)
-    if tool then
-        tool.Parent = Character
-    end
-end
+local farmEnabled = false
+local heartbeatConnection = nil
 
-local BrainrotsCache = {}
-local function UpdateBrainrotsCache()
-    local folder = Workspace:WaitForChild("ScriptedMap"):WaitForChild("Brainrots")
-    BrainrotsCache = {}
-    for _, b in ipairs(folder:GetChildren()) do
-        if b:FindFirstChild("BrainrotHitbox") then
-            table.insert(BrainrotsCache, b)
-        end
-    end
-end
+local function findNearestBrainrot()
+    local nearestBrainrot = nil
+    local minDistanceSq = math.huge
+    local playerPosition = humanoidRootPart.Position
 
-local function GetNearestBrainrot()
-    local nearest = nil
-    local minDist = math.huge
-    for _, b in ipairs(BrainrotsCache) do
-        local hitbox = b:FindFirstChild("BrainrotHitbox")
-        if hitbox then
-            local dist = (HumanoidRootPart.Position - hitbox.Position).Magnitude
-            if dist < minDist then
-                minDist = dist
-                nearest = b
+    for _, brainrotModel in ipairs(brainrotsFolder:GetChildren()) do
+        if brainrotModel.PrimaryPart then
+            local distanceSq = (playerPosition - brainrotModel.PrimaryPart.Position).Magnitude^2
+            if distanceSq < minDistanceSq then
+                minDistanceSq = distanceSq
+                nearestBrainrot = brainrotModel
             end
         end
     end
-    return nearest
+    
+    if nearestBrainrot then
+        return nearestBrainrot, nearestBrainrot.Name
+    end
+    
+    return nil, nil
 end
 
-local function StickToBrainrot(brainrot)
-    local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
-    if hitbox then
-        local offset = Vector3.new(0, 1, 3)
-        HumanoidRootPart.CFrame = HumanoidRootPart.CFrame:Lerp(
-            CFrame.new(hitbox.Position + offset, hitbox.Position),
-            0.01  -- 貼身速度，可改 0.1~0.5
-        )
+local function farmLoop()
+    if not farmEnabled then return end
+    
+    local nearestTarget, targetInstanceName = findNearestBrainrot()
+    
+    if nearestTarget and nearestTarget.PrimaryPart then
+        humanoidRootPart.CFrame = CFrame.new(nearestTarget.PrimaryPart.Position + Vector3.new(0, 5, 0))
+        attackRemote:FireServer(unpack({{[1] = targetInstanceName}}))
     end
 end
 
-UpdateBrainrotsCache()
-
-task.spawn(function()
-    while task.wait(0.01) do
-        if autoEnabled then
-            if not Character:FindFirstChild(HeldToolName) then
-                EquipTool()
-            end
-            UpdateBrainrotsCache()
-            local nearest = GetNearestBrainrot()
-            if nearest then
-                StickToBrainrot(nearest)
-                local hitbox = nearest:FindFirstChild("BrainrotHitbox")
-                if hitbox then
-                    pcall(function()
-                        ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer({
-                            { target = hitbox }
-                        })
-                    end)
-                end
-            end
-            pcall(function()
-                VirtualUser:ClickButton1(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)  
-            end)
-        end
-    end
-end)
-
+-- 假設 "Tab" 已經被您的 UI 庫定義
 local Toggle = FarmTab:Toggle({
-    Title = "Auto Brainrot + Click",
-    Desc = "自動裝備 + 攻擊 Brainrot + 模擬點擊（黏著模式）",
-    Icon = "bird",
-    Type = "Checkbox",
+    Title = "自動農場 (傳送+攻擊)",
     Default = false,
     Callback = function(state) 
-        autoEnabled = state
+        farmEnabled = state
+        if farmEnabled then
+            if not heartbeatConnection then
+                heartbeatConnection = RunService.Heartbeat:Connect(farmLoop)
+            end
+        else
+            if heartbeatConnection then
+                heartbeatConnection:Disconnect()
+                heartbeatConnection = nil
+            end
+        end
     end
 })
-
 
 local BagTab = Window:Tab({
     Title = "Auto Sell",
