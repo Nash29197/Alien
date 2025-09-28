@@ -13,9 +13,6 @@ local Window = WindUI:CreateWindow({
     },
 })
 
-local ConfigManager = Window.ConfigManager
-local myConfig = ConfigManager:CreateConfig("Alien-Pvb")
-
 Window:EditOpenButton({
     Title = "Alien",
     Icon = "monitor",
@@ -506,82 +503,24 @@ task.spawn(function()
     end
 end)
 
-myConfig:Register("SpeedToggle", SpeedToggle)
-myConfig:Register("SpeedSlider", SpeedSlider)
-myConfig:Register("JumpToggle", JumpToggle)
-myConfig:Register("JumpSlider", JumpSlider)
-myConfig:Register("NoclipToggle", NoclipToggle)
-myConfig:Register("AutoBuySeedsToggle", AutoBuySeedsToggle)
-myConfig:Register("AutoBuyAllSeedsToggle", AutoBuyAllSeedsToggle)
-myConfig:Register("SeedsDropdown", SeedsDropdown)
-myConfig:Register("AutoBuyGearsToggle", AutoBuyGearsToggle)
-myConfig:Register("AutoBuyAllGearsToggle", AutoBuyAllGearsToggle)
-myConfig:Register("GearsDropdown", GearsDropdown)
-myConfig:Load()
-local function autoSave()
-    myConfig:Save()
-end
-SpeedToggle.Callback = function(state)
-    isSprintToggled = state
-    updateWalkSpeed()
-    autoSave()
-end
-SpeedSlider.Callback = function(value)
-    currentSprintSpeed = value
-    updateWalkSpeed()
-    autoSave()
-end
-JumpToggle.Callback = function(state)
-    isJumpToggled = state
-    updateJumpPower()
-    autoSave()
-end
-JumpSlider.Callback = function(value)
-    currentJumpPower = value
-    updateJumpPower()
-    autoSave()
-end
-NoclipToggle.Callback = function(state)
-    isNoclipActive = state
-    if isNoclipActive then
-        NoclipConnection = RunService.Stepped:Connect(Noclip)
-    else
-        if NoclipConnection then
-            NoclipConnection:Disconnect()
-            NoclipConnection = nil
-        end
-        if LocalPlayer and LocalPlayer.Character then
-            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                    part.CanCollide = true
-                end
-            end
-        end
-    end
-    autoSave()
-end
-AutoBuySeedsToggle.Callback = function(state)
-    autoBuySelected = state
-    autoSave()
-end
-AutoBuyAllSeedsToggle.Callback = function(state)
-    autoBuyAll = state
-    autoSave()
-end
-SeedsDropdown.Callback = function(options)
-    selectedSeeds = options
-    autoSave()
-end
-AutoBuyGearsToggle.Callback = function(state)
-    autoBuySelected = state
-    autoSave()
-end
-AutoBuyAllGearsToggle.Callback = function(state)
-    autoBuyAll = state
-    autoSave()
-end
-GearsDropdown.Callback = function(options)
-    selectedTools = options
-    autoSave()
-end
+local ConfigTab = Window:Tab({
+    Title = "Config",
+    Icon = "save", -- l
+    Locked = false,
+})
 
+local Button = ConfigTab:Button({
+    Title = "Save Config",
+    Locked = false,
+    Callback = function()
+       myConfig:Save()
+    end
+})
+
+local Button = ConfigTab:Button({
+    Title = "Load Config",
+    Locked = false,
+    Callback = function()
+       myConfig:Load()
+    end
+})
