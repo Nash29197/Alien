@@ -209,24 +209,29 @@ local FarmTab = Window:Tab({
     Locked = false,
 })
 
-local autoEnabled = false -- 開關狀態
+repeat task.wait() until game:IsLoaded()
 
--- 假設你已經有一個 Tab 物件
-local Toggle = FarmTab:Toggle({
-    Title = "Auto Brainrot",
-    Desc = "自動裝備 Leather Grip Bat 並攻擊最近的 Brainrot",
-    Icon = "bird",
-    Type = "Checkbox",
-    Default = false,
-    Callback = function(state)
-        autoEnabled = state
-        print("Toggle Activated: " .. tostring(state))
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local VirtualUser = game:GetService("VirtualUser")
+
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+
+local HeldToolName = "Leather Grip Bat"
+local autoEnabled = false  
+
+local function EquipTool()
+    local tool = Backpack:FindFirstChild(HeldToolName) or Character:FindFirstChild(HeldToolName)
+    if tool then
+        tool.Parent = Character
     end
-})
+end
 
 local BrainrotsCache = {}
-local ClickInterval = 0.01 -- 自動點擊間隔
-
 local function UpdateBrainrotsCache()
     local folder = Workspace:WaitForChild("ScriptedMap"):WaitForChild("Brainrots")
     BrainrotsCache = {}
@@ -253,14 +258,6 @@ local function GetNearestBrainrot()
     return nearest
 end
 
-local function EquipBat()
-    local toolName = "Leather Grip Bat"
-    local tool = Backpack:FindFirstChild(toolName) or Character:FindFirstChild(toolName)
-    if tool then
-        tool.Parent = Character
-    end
-end
-
 local function InstantWarpToBrainrot(brainrot)
     local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
     if hitbox then
@@ -269,37 +266,42 @@ local function InstantWarpToBrainrot(brainrot)
     end
 end
 
-local function AttackBrainrot(brainrot)
-    local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
-    if hitbox then
-        local args = {
-            [1] = {
-                [1] = {
-                    ["target"] = hitbox
-                }
-            }
-        }
-        pcall(function()
-            ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer(unpack(args))
-        end)
-    end
-end
+UpdateBrainrotsCache()
 
--- 自動循環（自動點擊）
 task.spawn(function()
-    while true do
+    while task.wait(0.05) do
         if autoEnabled then
-            EquipBat()
-            UpdateBrainrotsCache()
-            local target = GetNearestBrainrot()
-            if target then
-                InstantWarpToBrainrot(target)
-                AttackBrainrot(target) -- 自動點擊
+            if not Character:FindFirstChild(HeldToolName) then
+                EquipTool()
             end
+            local nearest = GetNearestBrainrot()
+            if nearest then
+                InstantWarpToBrainrot(nearest)
+                local hitbox = nearest:FindFirstChild("BrainrotHitbox")
+                if hitbox then
+                    pcall(function()
+                        ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer({
+                            { target = hitbox }
+                        })
+                    end)
+                end
+            else
+                UpdateBrainrotsCache()
+            end
+            pcall(function()
+                VirtualUser:ClickButton1(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)  
+            end)
         end
-        task.wait(ClickInterval)
     end
 end)
+
+local Toggle = FarmTab:Toggle({
+    Title = "Auto Farm Brainrot",
+    Default = false,
+    Callback = function(state) 
+        autoEnabled = state
+    end
+})
 
 local BagTab = Window:Tab({
     Title = "Auto Sell",
