@@ -276,7 +276,7 @@ end
 
 local farmConnection = nil
 local lastActionTime = 0
-local actionInterval = 0.15 -- 遵循 DYHUB 的 0.15 秒延遲
+local actionInterval = 0.1
 
 local function farmLoop()
     if os.clock() - lastActionTime < actionInterval then
@@ -524,3 +524,4 @@ local DevTab = Window:Tab({
     Icon = "terminal", -- optional
     Locked = false,
 })
+
