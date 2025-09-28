@@ -226,6 +226,44 @@ local heartbeatConnection = nil
 local lastActionTime = 0
 local actionInterval = 0.01
 
+-- ==================== 新的尋找機制 (來自 DYHUB) ====================
+local BrainrotsCache = {}
+
+local function UpdateBrainrotsCache()
+    BrainrotsCache = {} -- 清空舊的快取
+    for _, b in ipairs(brainrotsFolder:GetChildren()) do
+        if b:FindFirstChild("BrainrotHitbox") then
+            table.insert(BrainrotsCache, b)
+        end
+    end
+end
+
+local function GetNearestBrainrot()
+    local nearest = nil
+    local minDist = math.huge
+    local playerPosition = humanoid.RootPart.Position
+
+    -- 直接遍歷快取，而不是 Workspace
+    for _, b in ipairs(BrainrotsCache) do
+        local hitbox = b:FindFirstChild("BrainrotHitbox")
+        if hitbox then
+            -- DYHUB 使用 .Magnitude，我們改回 .Magnitude^2 以維持效能優勢
+            local distSq = (playerPosition - hitbox.Position).Magnitude^2
+            if distSq < minDist then
+                minDist = distSq
+                nearest = b
+            end
+        end
+    end
+    
+    if nearest then
+        return nearest, nearest.Name
+    end
+
+    return nil, nil
+end
+-- =================================================================
+
 local function equipWeapon(weaponName)
     if character:FindFirstChild(weaponName) then
         return
@@ -237,28 +275,6 @@ local function equipWeapon(weaponName)
     end
 end
 
-local function findNearestBrainrot()
-    local nearestBrainrot = nil
-    local minDistanceSq = math.huge
-    local playerPosition = humanoid.RootPart.Position
-
-    for _, brainrotModel in ipairs(brainrotsFolder:GetChildren()) do
-        if brainrotModel:FindFirstChild("BrainrotHitbox") then
-            local distanceSq = (playerPosition - brainrotModel.BrainrotHitbox.Position).Magnitude^2
-            if distanceSq < minDistanceSq then
-                minDistanceSq = distanceSq
-                nearestBrainrot = brainrotModel
-            end
-        end
-    end
-    
-    if nearestBrainrot then
-        return nearestBrainrot, nearestBrainrot.Name
-    end
-    
-    return nil, nil
-end
-
 local function farmLoop()
     if os.clock() - lastActionTime < actionInterval then
         return
@@ -266,7 +282,7 @@ local function farmLoop()
     
     lastActionTime = os.clock()
     
-    local nearestTarget, targetInstanceName = findNearestBrainrot()
+    local nearestTarget, targetInstanceName = GetNearestBrainrot()
     
     if nearestTarget then
         local hitbox = nearestTarget:FindFirstChild("BrainrotHitbox")
@@ -281,6 +297,9 @@ local function farmLoop()
             }
             attackRemote:FireServer(unpack(args))
         end
+    else
+        -- 如果在快取中找不到目標，就更新一次快取
+        UpdateBrainrotsCache()
     end
 end
 
@@ -291,6 +310,9 @@ local Toggle = FarmTab:Toggle({
         farmEnabled = state
         if farmEnabled then
             equipWeapon("Leather Grip Bat")
+            
+            -- 在啟動時，先更新一次腦紅快取
+            UpdateBrainrotsCache()
             
             if not heartbeatConnection then
                 heartbeatConnection = RunService.Heartbeat:Connect(farmLoop)
