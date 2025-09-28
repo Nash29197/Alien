@@ -13,6 +13,9 @@ local Window = WindUI:CreateWindow({
     },
 })
 
+local ConfigManager = Window.ConfigManager
+local myConfig = ConfigManager:CreateConfig("Alien-Pvb")
+
 Window:EditOpenButton({
     Title = "Alien",
     Icon = "monitor",
