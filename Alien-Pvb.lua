@@ -110,7 +110,7 @@ local SpeedSlider = PlayerTab:Slider({
 })
 
 currentSprintSpeed = SpeedSlider.Value.Default
-isSprintToggled = SprintToggle.Default
+isSprintToggled = SpeedToggle.Default
 updateWalkSpeed()
 
 local player = game.Players.LocalPlayer
