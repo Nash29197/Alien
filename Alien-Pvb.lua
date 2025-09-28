@@ -219,6 +219,7 @@ local VirtualUser = game:GetService("VirtualUser")
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Humanoid = Character:WaitForChild("Humanoid")
 local Backpack = LocalPlayer:WaitForChild("Backpack")
 
 local HeldToolName = "Leather Grip Bat"
@@ -258,18 +259,21 @@ local function GetNearestBrainrot()
     return nearest
 end
 
-local function InstantWarpToBrainrot(brainrot)
+local function StickToBrainrot(brainrot)
     local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
     if hitbox then
         local offset = Vector3.new(0, 1, 3)
-        HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + offset, hitbox.Position)
+        HumanoidRootPart.CFrame = HumanoidRootPart.CFrame:Lerp(
+            CFrame.new(hitbox.Position + offset, hitbox.Position),
+            0.01  -- 貼身速度，可改 0.1~0.5
+        )
     end
 end
 
 UpdateBrainrotsCache()
 
 task.spawn(function()
-    while task.wait(0.05) do
+    while task.wait(0.01) do
         if autoEnabled then
             if not Character:FindFirstChild(HeldToolName) then
                 EquipTool()
@@ -277,7 +281,7 @@ task.spawn(function()
             UpdateBrainrotsCache()
             local nearest = GetNearestBrainrot()
             if nearest then
-                InstantWarpToBrainrot(nearest)
+                StickToBrainrot(nearest)
                 local hitbox = nearest:FindFirstChild("BrainrotHitbox")
                 if hitbox then
                     pcall(function()
@@ -296,7 +300,7 @@ end)
 
 local Toggle = FarmTab:Toggle({
     Title = "Auto Brainrot + Click",
-    Desc = "自動裝備 + 攻擊 Brainrot + 模擬點擊",
+    Desc = "自動裝備 + 攻擊 Brainrot + 模擬點擊（黏著模式）",
     Icon = "bird",
     Type = "Checkbox",
     Default = false,
