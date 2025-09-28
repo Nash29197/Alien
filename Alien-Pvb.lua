@@ -13,6 +13,13 @@ local Window = WindUI:CreateWindow({
     },
 })
 
+local ConfigManager = Window.ConfigManager
+local myConfig = ConfigManager:CreateConfig("Alien-Pvb")
+
+local ConfigManager = Window.ConfigManager
+
+local myConfig = ConfigManager:CreateConfig("myConfigExample")
+
 Window:EditOpenButton({
     Title = "Alien",
     Icon = "monitor",
@@ -77,7 +84,7 @@ player.CharacterAdded:Connect(function(newCharacter)
     updateWalkSpeed()
 end)
 
-local SprintToggle = PlayerTab:Toggle({
+local SpeedToggle = PlayerTab:Toggle({
     Title = "Speed",
     Desc = "ON or OFF speed boost",
     Default = false,
@@ -177,7 +184,7 @@ local function Noclip()
     end
 end
 
-local Toggle = PlayerTab:Toggle({
+local NoclipToggle = PlayerTab:Toggle({
     Title = "Noclip",
     Desc = "Wall hack",
     Default = false,
@@ -304,7 +311,7 @@ local function farmLoop()
     end
 end
 
-local Toggle = FarmTab:Toggle({
+local AutoFarmBrainrotsToggle = FarmTab:Toggle({
     Title = "Auto Farm Brainrots",
     Default = false,
     Callback = function(state) 
@@ -367,7 +374,7 @@ local autoBuySelected = false
 local autoBuyAll = false
 local cooldown = 0.69
 
-local SeedDropdown = ShopTab:Dropdown({
+local SeedsDropdown = ShopTab:Dropdown({
     Title = "Select Seeds",
     Values = seeds,
     Value = {},
@@ -378,7 +385,7 @@ local SeedDropdown = ShopTab:Dropdown({
     end
 })
 
-local ToggleSelected = ShopTab:Toggle({
+local AutoBuySeedsToggle = ShopTab:Toggle({
     Title = "Auto Buy Seeds",
     Default = false,
     Callback = function(state)
@@ -386,7 +393,7 @@ local ToggleSelected = ShopTab:Toggle({
     end
 })
 
-local ToggleAll = ShopTab:Toggle({
+local AutoBuyAllSeedsToggle = ShopTab:Toggle({
     Title = "Auto Buy All Seeds",
     Default = false,
     Callback = function(state)
@@ -443,7 +450,7 @@ local autoBuySelected = false
 local autoBuyAll = false
 local cooldown = 0.69
 
-local ToolDropdown = ShopTab:Dropdown({
+local GearsDropdown = ShopTab:Dropdown({
     Title = "Select Gears",
     Values = tools,
     Value = {},
@@ -454,7 +461,7 @@ local ToolDropdown = ShopTab:Dropdown({
     end
 })
 
-local ToggleSelected = ShopTab:Toggle({
+local AutoBuyGearsToggle = ShopTab:Toggle({
     Title = "Auto Buy Gears",
     Default = false,
     Callback = function(state)
@@ -462,7 +469,7 @@ local ToggleSelected = ShopTab:Toggle({
     end
 })
 
-local ToggleAll = ShopTab:Toggle({
+local AutoBuyAllGearsToggle = ShopTab:Toggle({
     Title = "Auto Buy All Gears",
     Default = false,
     Callback = function(state)
@@ -503,5 +510,81 @@ task.spawn(function()
     end
 end)
 
-
-myConfig:Save()
+myConfig:Register("SpeedToggle", SpeedToggle)
+myConfig:Register("SpeedSlider", SpeedSlider)
+myConfig:Register("JumpToggle", JumpToggle)
+myConfig:Register("JumpSlider", JumpSlider)
+myConfig:Register("NoclipToggle", NoclipToggle)
+myConfig:Register("AutoBuySeedsToggle", AutoBuySeedsToggle)
+myConfig:Register("AutoBuyAllSeedsToggle", AutoBuyAllSeedsToggle)
+myConfig:Register("SeedsDropdown", SeedsDropdown)
+myConfig:Register("AutoBuyGearsToggle", AutoBuyGearsToggle)
+myConfig:Register("AutoBuyAllGearsToggle", AutoBuyAllGearsToggle)
+myConfig:Register("GearsDropdown", GearsDropdown)
+myConfig:Load()
+local function autoSave()
+    myConfig:Save()
+end
+SpeedToggle.Callback = function(state)
+    isSprintToggled = state
+    updateWalkSpeed()
+    autoSave()
+end
+SpeedSlider.Callback = function(value)
+    currentSprintSpeed = value
+    updateWalkSpeed()
+    autoSave()
+end
+JumpToggle.Callback = function(state)
+    isJumpToggled = state
+    updateJumpPower()
+    autoSave()
+end
+JumpSlider.Callback = function(value)
+    currentJumpPower = value
+    updateJumpPower()
+    autoSave()
+end
+NoclipToggle.Callback = function(state)
+    isNoclipActive = state
+    if isNoclipActive then
+        NoclipConnection = RunService.Stepped:Connect(Noclip)
+    else
+        if NoclipConnection then
+            NoclipConnection:Disconnect()
+            NoclipConnection = nil
+        end
+        if LocalPlayer and LocalPlayer.Character then
+            for _, part in ipairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                    part.CanCollide = true
+                end
+            end
+        end
+    end
+    autoSave()
+end
+AutoBuySeedsToggle.Callback = function(state)
+    autoBuySelected = state
+    autoSave()
+end
+AutoBuyAllSeedsToggle.Callback = function(state)
+    autoBuyAll = state
+    autoSave()
+end
+SeedsDropdown.Callback = function(options)
+    selectedSeeds = options
+    autoSave()
+end
+AutoBuyGearsToggle.Callback = function(state)
+    autoBuySelected = state
+    autoSave()
+end
+AutoBuyAllGearsToggle.Callback = function(state)
+    autoBuyAll = state
+    autoSave()
+end
+GearsDropdown.Callback = function(options)
+    selectedTools = options
+    autoSave()
+end
