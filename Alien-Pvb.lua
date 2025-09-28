@@ -16,10 +16,6 @@ local Window = WindUI:CreateWindow({
 local ConfigManager = Window.ConfigManager
 local myConfig = ConfigManager:CreateConfig("Alien-Pvb")
 
-local ConfigManager = Window.ConfigManager
-
-local myConfig = ConfigManager:CreateConfig("myConfigExample")
-
 Window:EditOpenButton({
     Title = "Alien",
     Icon = "monitor",
@@ -588,3 +584,4 @@ GearsDropdown.Callback = function(options)
     selectedTools = options
     autoSave()
 end
+
