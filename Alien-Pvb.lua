@@ -243,8 +243,8 @@ local function findNearestBrainrot()
     local playerPosition = humanoid.RootPart.Position
 
     for _, brainrotModel in ipairs(brainrotsFolder:GetChildren()) do
-        if brainrotModel.PrimaryPart then
-            local distanceSq = (playerPosition - brainrotModel.PrimaryPart.Position).Magnitude^2
+        if brainrotModel:FindFirstChild("BrainrotHitbox") then
+            local distanceSq = (playerPosition - brainrotModel.BrainrotHitbox.Position).Magnitude^2
             if distanceSq < minDistanceSq then
                 minDistanceSq = distanceSq
                 nearestBrainrot = brainrotModel
@@ -268,9 +268,19 @@ local function farmLoop()
     
     local nearestTarget, targetInstanceName = findNearestBrainrot()
     
-    if nearestTarget and nearestTarget.PrimaryPart then
-        humanoid.RootPart.CFrame = CFrame.new(nearestTarget.PrimaryPart.Position)
-        attackRemote:FireServer(unpack({{[1] = targetInstanceName}}))
+    if nearestTarget then
+        local hitbox = nearestTarget:FindFirstChild("BrainrotHitbox")
+        if hitbox then
+            local offset = Vector3.new(0, 1, 3)
+            humanoid.RootPart.CFrame = CFrame.new(hitbox.Position + offset, hitbox.Position)
+            
+            local args = {
+                [1] = {
+                    [1] = targetInstanceName
+                }
+            }
+            attackRemote:FireServer(unpack(args))
+        end
     end
 end
 
