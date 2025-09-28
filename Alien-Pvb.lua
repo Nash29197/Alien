@@ -274,6 +274,7 @@ task.spawn(function()
             if not Character:FindFirstChild(HeldToolName) then
                 EquipTool()
             end
+            UpdateBrainrotsCache()
             local nearest = GetNearestBrainrot()
             if nearest then
                 InstantWarpToBrainrot(nearest)
@@ -285,8 +286,6 @@ task.spawn(function()
                         })
                     end)
                 end
-            else
-                UpdateBrainrotsCache()
             end
             pcall(function()
                 VirtualUser:ClickButton1(Vector2.new(0,0), Workspace.CurrentCamera.CFrame)  
@@ -296,12 +295,16 @@ task.spawn(function()
 end)
 
 local Toggle = FarmTab:Toggle({
-    Title = "Auto Farm Brainrot",
+    Title = "Auto Brainrot + Click",
+    Desc = "自動裝備 + 攻擊 Brainrot + 模擬點擊",
+    Icon = "bird",
+    Type = "Checkbox",
     Default = false,
     Callback = function(state) 
         autoEnabled = state
     end
 })
+
 
 local BagTab = Window:Tab({
     Title = "Auto Sell",
