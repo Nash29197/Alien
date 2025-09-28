@@ -256,7 +256,7 @@ end
 
 local function EquipBat()
     local tool = Backpack:FindFirstChild(HeldToolName) or Character:FindFirstChild(HeldToolName)
-    if tool then
+    if tool and tool.Parent ~= Character then
         tool.Parent = Character
     end
 end
@@ -264,7 +264,7 @@ end
 local function InstantWarpToBrainrot(brainrot)
     local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
     if hitbox then
-        local offset = Vector3.new(0, 0, 0)
+        local offset = Vector3.new(0, 1, 0)
         HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + offset) * (HumanoidRootPart.CFrame - HumanoidRootPart.CFrame.Position)
     end
 end
@@ -279,6 +279,8 @@ local function farmLoop()
     end
     lastActionTime = os.clock()
 
+    EquipBat()
+    
     local nearestTarget, targetInstanceName = GetNearestBrainrot()
     
     if nearestTarget then
@@ -297,7 +299,7 @@ local function farmLoop()
 end
 
 local Toggle = FarmTab:Toggle({
-    Title = "自動農場 (防躺平)",
+    Title = "Auto Farm Brainrots",
     Default = false,
     Callback = function(state) 
         AutoFarm = state
@@ -494,28 +496,4 @@ task.spawn(function()
         task.wait(0.1)
     end
 end)
-
-local ESPTab = Window:Tab({
-    Title = "ESP",
-    Icon = "eye", -- optional
-    Locked = false,
-})
-
-local MiscTab = Window:Tab({
-    Title = "Misc",
-    Icon = "text", -- optional
-    Locked = false,
-})
-
-local SettingTab = Window:Tab({
-    Title = "Setting",
-    Icon = "settings", -- optional
-    Locked = false,
-})
-
-local DevTab = Window:Tab({
-    Title = "DEV Tool",
-    Icon = "terminal", -- optional
-    Locked = false,
-})
 
