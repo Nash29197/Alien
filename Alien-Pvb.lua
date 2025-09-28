@@ -264,9 +264,8 @@ end
 local function InstantWarpToBrainrot(brainrot)
     local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
     if hitbox then
-        -- 已修改：在目標位置的基礎上，只將 Y 軸（高度）增加 1
-        local offset = Vector3.new(0, -1, 0)
-        HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + offset, hitbox.Position)
+        local offset = Vector3.new(0, 1, 0)
+        HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + offset) * (HumanoidRootPart.CFrame - HumanoidRootPart.CFrame.Position)
     end
 end
 
@@ -297,9 +296,8 @@ local function farmLoop()
     end
 end
 
--- 注意：您提供的程式碼中 Toggle 的父級是 FarmTab，我將其保留
 local Toggle = FarmTab:Toggle({
-    Title = "自動農場 (Y軸+1)",
+    Title = "自動農場 (防躺平)",
     Default = false,
     Callback = function(state) 
         AutoFarm = state
@@ -520,4 +518,3 @@ local DevTab = Window:Tab({
     Icon = "terminal", -- optional
     Locked = false,
 })
-
