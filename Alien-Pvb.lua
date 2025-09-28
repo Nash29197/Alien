@@ -213,25 +213,22 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local backpack = player:WaitForChild("Backpack")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+local Workspace = game:GetService("Workspace")
 
-local brainrotsFolder = game.Workspace:WaitForChild("Brainrots")
-local attackRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("AttacksServer"):WaitForChild("WeaponAttack")
+local AutoFarm = false
+local HeldToolName = "Leather Grip Bat"
 
-local farmEnabled = false
-local heartbeatConnection = nil
-local lastActionTime = 0
-local actionInterval = 0.01
+-- ====================== DYHUB 核心函數 (除了攻擊) ======================
 
--- ==================== 新的尋找機制 (來自 DYHUB) ====================
 local BrainrotsCache = {}
-
 local function UpdateBrainrotsCache()
-    BrainrotsCache = {} -- 清空舊的快取
-    for _, b in ipairs(brainrotsFolder:GetChildren()) do
+    local folder = Workspace:WaitForChild("ScriptedMap"):WaitForChild("Brainrots")
+    BrainrotsCache = {}
+    for _, b in ipairs(folder:GetChildren()) do
         if b:FindFirstChild("BrainrotHitbox") then
             table.insert(BrainrotsCache, b)
         end
@@ -241,86 +238,86 @@ end
 local function GetNearestBrainrot()
     local nearest = nil
     local minDist = math.huge
-    local playerPosition = humanoid.RootPart.Position
-
-    -- 直接遍歷快取，而不是 Workspace
     for _, b in ipairs(BrainrotsCache) do
         local hitbox = b:FindFirstChild("BrainrotHitbox")
-        if hitbox then
-            -- DYHUB 使用 .Magnitude，我們改回 .Magnitude^2 以維持效能優勢
-            local distSq = (playerPosition - hitbox.Position).Magnitude^2
-            if distSq < minDist then
-                minDist = distSq
+        if hitbox and hitbox.Parent and hitbox.Parent:IsDescendantOf(Workspace) then
+            local dist = (HumanoidRootPart.Position - hitbox.Position).Magnitude
+            if dist < minDist then
+                minDist = dist
                 nearest = b
             end
         end
     end
     
     if nearest then
+        -- 同時回傳模型和它的名稱，為您的攻擊格式做準備
         return nearest, nearest.Name
     end
 
     return nil, nil
 end
--- =================================================================
 
-local function equipWeapon(weaponName)
-    if character:FindFirstChild(weaponName) then
-        return
-    end
-
-    local weaponInBackpack = backpack:FindFirstChild(weaponName)
-    if weaponInBackpack then
-        humanoid:EquipTool(weaponInBackpack)
+local function EquipBat()
+    local tool = Backpack:FindFirstChild(HeldToolName) or Character:FindFirstChild(HeldToolName)
+    if tool then
+        tool.Parent = Character
     end
 end
+
+local function InstantWarpToBrainrot(brainrot)
+    local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
+    if hitbox then
+        local offset = Vector3.new(0, 1, 3)
+        HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + offset, hitbox.Position)
+    end
+end
+
+-- ====================== 主循環與 UI 整合 ======================
+
+local farmConnection = nil
+local lastActionTime = 0
+local actionInterval = 0.15 -- 遵循 DYHUB 的 0.15 秒延遲
 
 local function farmLoop()
     if os.clock() - lastActionTime < actionInterval then
         return
     end
-    
     lastActionTime = os.clock()
-    
+
     local nearestTarget, targetInstanceName = GetNearestBrainrot()
     
     if nearestTarget then
-        local hitbox = nearestTarget:FindFirstChild("BrainrotHitbox")
-        if hitbox then
-            local offset = Vector3.new(0, 1, 3)
-            humanoid.RootPart.CFrame = CFrame.new(hitbox.Position + offset, hitbox.Position)
-            
-            local args = {
-                [1] = {
-                    [1] = targetInstanceName
-                }
+        InstantWarpToBrainrot(nearestTarget)
+        
+        -- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<-
+        local args = {
+            [1] = {
+                [1] = targetInstanceName
             }
-            attackRemote:FireServer(unpack(args))
-        end
+        }
+        ReplicatedStorage.Remotes.AttacksServer.WeaponAttack:FireServer(unpack(args))
+        
     else
-        -- 如果在快取中找不到目標，就更新一次快取
         UpdateBrainrotsCache()
     end
 end
 
 local Toggle = FarmTab:Toggle({
-    Title = "自動農場 (傳送+攻擊)",
+    Title = "自動農場 (混合模式)",
     Default = false,
     Callback = function(state) 
-        farmEnabled = state
-        if farmEnabled then
-            equipWeapon("Leather Grip Bat")
-            
-            -- 在啟動時，先更新一次腦紅快取
+        AutoFarm = state
+        if AutoFarm then
+            EquipBat()
             UpdateBrainrotsCache()
             
-            if not heartbeatConnection then
-                heartbeatConnection = RunService.Heartbeat:Connect(farmLoop)
+            if not farmConnection then
+                farmConnection = RunService.Heartbeat:Connect(farmLoop)
             end
         else
-            if heartbeatConnection then
-                heartbeatConnection:Disconnect()
-                heartbeatConnection = nil
+            if farmConnection then
+                farmConnection:Disconnect()
+                farmConnection = nil
             end
         end
     end
