@@ -215,18 +215,32 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+local backpack = player:WaitForChild("Backpack")
 
 local brainrotsFolder = game.Workspace:WaitForChild("Brainrots")
 local attackRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("AttacksServer"):WaitForChild("WeaponAttack")
 
 local farmEnabled = false
 local heartbeatConnection = nil
+local lastActionTime = 0
+local actionInterval = 0.01
+
+local function equipWeapon(weaponName)
+    if character:FindFirstChild(weaponName) then
+        return
+    end
+
+    local weaponInBackpack = backpack:FindFirstChild(weaponName)
+    if weaponInBackpack then
+        humanoid:EquipTool(weaponInBackpack)
+    end
+end
 
 local function findNearestBrainrot()
     local nearestBrainrot = nil
     local minDistanceSq = math.huge
-    local playerPosition = humanoidRootPart.Position
+    local playerPosition = humanoid.RootPart.Position
 
     for _, brainrotModel in ipairs(brainrotsFolder:GetChildren()) do
         if brainrotModel.PrimaryPart then
@@ -246,23 +260,28 @@ local function findNearestBrainrot()
 end
 
 local function farmLoop()
-    if not farmEnabled then return end
+    if os.clock() - lastActionTime < actionInterval then
+        return
+    end
+    
+    lastActionTime = os.clock()
     
     local nearestTarget, targetInstanceName = findNearestBrainrot()
     
     if nearestTarget and nearestTarget.PrimaryPart then
-        humanoidRootPart.CFrame = CFrame.new(nearestTarget.PrimaryPart.Position + Vector3.new(0, 5, 0))
+        humanoid.RootPart.CFrame = CFrame.new(nearestTarget.PrimaryPart.Position)
         attackRemote:FireServer(unpack({{[1] = targetInstanceName}}))
     end
 end
 
--- 假設 "Tab" 已經被您的 UI 庫定義
 local Toggle = FarmTab:Toggle({
     Title = "自動農場 (傳送+攻擊)",
     Default = false,
     Callback = function(state) 
         farmEnabled = state
         if farmEnabled then
+            equipWeapon("Leather Grip Bat")
+            
             if not heartbeatConnection then
                 heartbeatConnection = RunService.Heartbeat:Connect(farmLoop)
             end
