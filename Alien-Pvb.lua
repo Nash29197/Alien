@@ -13,8 +13,6 @@ local Window = WindUI:CreateWindow({
     },
 })
 
-myConfig:Load()
-
 Window:EditOpenButton({
     Title = "Alien",
     Icon = "monitor",
@@ -504,5 +502,6 @@ task.spawn(function()
         task.wait(0.1)
     end
 end)
+
 
 myConfig:Save()
