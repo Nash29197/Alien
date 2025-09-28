@@ -276,7 +276,7 @@ end
 
 local farmConnection = nil
 local lastActionTime = 0
-local actionInterval = 0.1
+local actionInterval = 0.01
 
 local function farmLoop()
     if os.clock() - lastActionTime < actionInterval then
@@ -524,4 +524,5 @@ local DevTab = Window:Tab({
     Icon = "terminal", -- optional
     Locked = false,
 })
+
 
