@@ -264,7 +264,7 @@ end
 local function InstantWarpToBrainrot(brainrot)
     local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
     if hitbox then
-        local offset = Vector3.new(0, 1, 0)
+        local offset = Vector3.new(0, 0, 0)
         HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + offset) * (HumanoidRootPart.CFrame - HumanoidRootPart.CFrame.Position)
     end
 end
@@ -518,3 +518,4 @@ local DevTab = Window:Tab({
     Icon = "terminal", -- optional
     Locked = false,
 })
+
