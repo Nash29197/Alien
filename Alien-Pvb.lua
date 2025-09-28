@@ -215,6 +215,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
 local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 local Backpack = LocalPlayer:WaitForChild("Backpack")
 local Workspace = game:GetService("Workspace")
@@ -255,16 +256,21 @@ local function GetNearestBrainrot()
 end
 
 local function EquipBat()
-    local tool = Backpack:FindFirstChild(HeldToolName) or Character:FindFirstChild(HeldToolName)
-    if tool and tool.Parent ~= Character then
-        tool.Parent = Character
+    local currentTool = Character:FindFirstChildOfClass("Tool")
+    if currentTool and currentTool.Name == HeldToolName then
+        return
+    end
+
+    local toolInBackpack = Backpack:FindFirstChild(HeldToolName)
+    if toolInBackpack then
+        Humanoid:EquipTool(toolInBackpack)
     end
 end
 
 local function InstantWarpToBrainrot(brainrot)
     local hitbox = brainrot:FindFirstChild("BrainrotHitbox")
     if hitbox then
-        local offset = Vector3.new(0, 1, 0)
+        local offset = Vector3.new(0, 0, 0)
         HumanoidRootPart.CFrame = CFrame.new(hitbox.Position + offset) * (HumanoidRootPart.CFrame - HumanoidRootPart.CFrame.Position)
     end
 end
