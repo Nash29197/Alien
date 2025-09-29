@@ -2,7 +2,7 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 local blacklist = {
-    [6109094007] = true,
+    [] = true,
 }
 
 if blacklist[player.UserId] then
