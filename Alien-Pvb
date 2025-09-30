@@ -3,7 +3,7 @@ local targetGameId = "127742093697776"
 
 if tostring(currentGameId) == targetGameId then
     local success, scriptContent = pcall(function()
-        return game:HttpGet("https://scriptprotector.vercel.app/api/raw/e5315412790e842104251b41bc1d3b57" )
+        return game:HttpGet("https://scriptprotector.vercel.app/api/raw/bf26e5f395f30ab2bf062e969a60d5e0" )
     end)
 
     if success and scriptContent then
