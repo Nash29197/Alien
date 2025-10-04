@@ -1,3 +1,3 @@
 if tostring(game.PlaceId) == "127742093697776" then
-    loadstring(game:HttpGet("https://scriptprotector.vercel.app/api/raw/c04c66657edd6964da69cdfe39dfe840" ))()
+    loadstring(game:HttpGet("https://scriptprotector.vercel.app/api/raw/7abfe9f63dfd51fc2855a7748fb5cff6" ))()
 end
