@@ -1,0 +1,21 @@
+{
+  "name": "moonsec-deobfuscator-bot",
+  "version": "1.0.0",
+  "description": "Universal Lua Deobfuscator Discord Bot - Supports Moonsec, IronBrew, Luarmor, WeAreDevs, Veil",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "bot": "node bot.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "@discordjs/rest": "^2.2.0",
+    "discord-api-types": "^0.37.61",
+    "node-fetch": "^2.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["discord", "bot", "lua", "deobfuscator", "moonsec", "ironbrew", "luarmor", "wearedevs", "veil", "replit"]
+}

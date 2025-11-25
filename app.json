@@ -1,0 +1,28 @@
+{
+  "name": "Universal Lua Deobfuscator Bot",
+  "description": "A Discord bot that deobfuscates multiple types of Lua obfuscators",
+  "repository": "https://github.com/yourusername/lua-deobfuscator-bot",
+  "logo": "https://cdn.discordapp.com/embed/avatars/0.png",
+  "keywords": ["discord", "bot", "lua", "deobfuscator", "moonsec", "ironbrew"],
+  "env": {
+    "DISCORD_TOKEN": {
+      "description": "Your Discord bot token from the Discord Developer Portal",
+      "required": true
+    },
+    "CLIENT_ID": {
+      "description": "Your Discord application client ID from the Discord Developer Portal",
+      "required": true
+    }
+  },
+  "formation": {
+    "worker": {
+      "quantity": 1,
+      "size": "free"
+    }
+  },
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    }
+  ]
+}
